@@ -1,72 +1,9 @@
 /**
- * LÓGICA DE LA APLICACIÓN DE ENCUESTAS MULTIUSUARIO
- * Sincronización en tiempo real con Socket.io y fallback BroadcastChannel
+ * LÓGICA DE LA APLICACIÓN DE ENCUESTAS MULTIUSUARIO (ClassPoll Live)
+ * Sincronización en tiempo real con Socket.io y fallback local.
  */
 
-// CONEXIÓN SOCKET EN TIEMPO REAL CON RECONEXIÓN AUTOMÁTICA
-let socket = null;
-
-function initSocketConnection() {
-    try {
-        if (typeof io !== 'undefined' && !socket) {
-            socket = io({
-                transports: ['polling', 'websocket'],
-                reconnection: true,
-                reconnectionAttempts: Infinity,
-                reconnectionDelay: 1000
-            });
-
-            socket.on('connect', () => {
-                console.log("Conectado con éxito al servidor en vivo");
-                const badge = document.getElementById('sessionStatusBadge');
-                if (badge) {
-                    badge.textContent = "Conectado en Vivo";
-                    badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
-                }
-                if (currentStudent && currentStudent.id) {
-                    socket.emit('student_joined', currentStudent);
-                }
-            });
-
-            socket.on('init_state', (data) => {
-                if (data) {
-                    if (data.surveyData) surveyData = data.surveyData;
-                    if (data.submissions && data.submissions.length > 0) submissions = data.submissions;
-                    if (data.activeStudents) activeStudents = data.activeStudents;
-                    renderApp();
-                }
-            });
-
-            socket.on('poll_state_updated', (data) => {
-                if (data) {
-                    if (data.surveyData) {
-                        // Preservar la respuesta correcta y explicación si la versión entrante no las trae
-                        if (surveyData && surveyData.questions) {
-                            data.surveyData.questions.forEach((q, idx) => {
-                                const localQ = surveyData.questions[idx];
-                                if (localQ) {
-                                    if (!q.correctAnswer && localQ.correctAnswer) q.correctAnswer = localQ.correctAnswer;
-                                    if (!q.explanation && localQ.explanation) q.explanation = localQ.explanation;
-                                }
-                            });
-                        }
-                        surveyData = data.surveyData;
-                    }
-                    if (data.submissions) submissions = data.submissions;
-                    if (data.activeStudents) activeStudents = data.activeStudents;
-                    renderApp();
-                }
-            });
-        }
-    } catch (e) {
-        console.log("Modo standalone/local activado", e);
-    }
-}
-
-// Inicializar la conexión socket inmediatamente al cargar la página
-initSocketConnection();
-
-// 1. DATOS POR DEFECTO CON PREGUNTAS INTERCALADAS CON CERTEZA
+// 1. ESTRUCTURA DE ENCUESTA POR DEFECTO (Preguntas + Certeza)
 const DEFAULT_SURVEY = {
     title: "Conceptos Fundamentales de Física y Termodinámica",
     activeBlock: 0,
@@ -126,11 +63,91 @@ const DEFAULT_SURVEY = {
     ]
 };
 
-// Claves de almacenamiento v3 para renovar caché del navegador
-let surveyData = JSON.parse(localStorage.getItem('classpoll_survey_v3')) || DEFAULT_SURVEY;
-let submissions = JSON.parse(localStorage.getItem('classpoll_submissions_v3')) || [];
+// Función defensiva: garantiza que correctAnswer y explanation nunca se borren por paquetes de sincronización
+function enrichSurveyWithMetadata(survey) {
+    if (!survey || !survey.questions) return survey;
+    survey.questions.forEach((q, idx) => {
+        const defaultQ = DEFAULT_SURVEY.questions[idx];
+        if (defaultQ) {
+            if (!q.correctAnswer && defaultQ.correctAnswer) {
+                q.correctAnswer = defaultQ.correctAnswer;
+            }
+            if (!q.explanation && defaultQ.explanation) {
+                q.explanation = defaultQ.explanation;
+            }
+        }
+    });
+    return survey;
+}
+
+// 2. CONEXIÓN Y ESTADO GLOBAL DE LA APLICACIÓN
+let socket = null;
+
+function initSocketConnection() {
+    try {
+        if (typeof io !== 'undefined' && !socket) {
+            socket = io({
+                transports: ['polling', 'websocket'],
+                reconnection: true,
+                reconnectionAttempts: Infinity,
+                reconnectionDelay: 1000
+            });
+
+            socket.on('connect', () => {
+                console.log("Conectado con éxito al servidor en vivo");
+                const badge = document.getElementById('sessionStatusBadge');
+                if (badge) {
+                    badge.textContent = "Conectado en Vivo";
+                    badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                }
+                if (currentStudent && currentStudent.id) {
+                    socket.emit('student_joined', currentStudent);
+                }
+            });
+
+            socket.on('init_state', (data) => {
+                if (data) {
+                    if (data.surveyData) {
+                        surveyData = enrichSurveyWithMetadata(data.surveyData);
+                    }
+                    if (data.submissions && data.submissions.length > 0) {
+                        submissions = data.submissions;
+                    }
+                    if (data.activeStudents) {
+                        activeStudents = data.activeStudents;
+                    }
+                    renderApp();
+                }
+            });
+
+            socket.on('poll_state_updated', (data) => {
+                if (data) {
+                    if (data.surveyData) {
+                        surveyData = enrichSurveyWithMetadata(data.surveyData);
+                    }
+                    if (data.submissions) {
+                        submissions = data.submissions;
+                    }
+                    if (data.activeStudents) {
+                        activeStudents = data.activeStudents;
+                    }
+                    renderApp();
+                }
+            });
+        }
+    } catch (e) {
+        console.log("Modo standalone/local activado", e);
+    }
+}
+
+// Inicializar conexión inmediatamente
+initSocketConnection();
+
+// Almacenamiento local con versión v4 para invalidar cachés viejas
+let surveyData = enrichSurveyWithMetadata(JSON.parse(localStorage.getItem('classpoll_survey_v4')) || DEFAULT_SURVEY);
+let submissions = JSON.parse(localStorage.getItem('classpoll_submissions_v4')) || [];
 let activeStudents = [];
-let currentStudent = JSON.parse(localStorage.getItem('classpoll_current_student_v3')) || null;
+let currentStudent = JSON.parse(localStorage.getItem('classpoll_current_student_v4')) || null;
 let currentRole = 'student';
 let isTeacherAuthenticated = false;
 const TEACHER_PIN = "1234";
@@ -140,24 +157,24 @@ let chartInstances = {};
 // Sincronización entre pestañas locales del mismo navegador
 const pollChannel = new BroadcastChannel('classpoll_live_sync');
 
-function saveStateToStorage() {
-    localStorage.setItem('classpoll_survey_v3', JSON.stringify(surveyData));
-    localStorage.setItem('classpoll_submissions_v3', JSON.stringify(submissions));
-    localStorage.setItem('classpoll_current_student_v3', JSON.stringify(currentStudent));
+function saveStateToStorage(isTeacherAction = false) {
+    localStorage.setItem('classpoll_survey_v4', JSON.stringify(surveyData));
+    localStorage.setItem('classpoll_submissions_v4', JSON.stringify(submissions));
+    localStorage.setItem('classpoll_current_student_v4', JSON.stringify(currentStudent));
     pollChannel.postMessage({ type: 'SYNC' });
 
     if (socket) {
         if (isTeacherAction) {
-            // El profesor actualiza la encuesta y las respuestas
+            // El profesor envía la encuesta y las respuestas
             socket.emit('update_poll_state', { surveyData, submissions });
         } else {
-            // El estudiante SOLO envía las respuestas para no borrar correctAnswer/explanation
+            // El estudiante SOLO envía respuestas para no sobrescribir surveyData
             socket.emit('update_poll_state', { submissions });
         }
     }
 }
 
-// INICIALIZACIÓN MULTIUSUARIO
+// INICIALIZACIÓN AL CARGAR EL DOM
 window.addEventListener('DOMContentLoaded', () => {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
@@ -166,14 +183,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
     pollChannel.onmessage = (event) => {
         if (event.data && event.data.type === 'SYNC') {
-            surveyData = JSON.parse(localStorage.getItem('classpoll_survey_v3')) || DEFAULT_SURVEY;
-            submissions = JSON.parse(localStorage.getItem('classpoll_submissions_v3')) || [];
+            surveyData = enrichSurveyWithMetadata(JSON.parse(localStorage.getItem('classpoll_survey_v4')) || DEFAULT_SURVEY);
+            submissions = JSON.parse(localStorage.getItem('classpoll_submissions_v4')) || [];
             renderApp();
         }
     };
 });
 
-// 2. SEGURIDAD Y CONTROL DE PIN
+// 3. SEGURIDAD Y CONTROL DE PIN
 function trySwitchToTeacher() {
     if (isTeacherAuthenticated) {
         switchRole('teacher');
@@ -226,7 +243,7 @@ function closePinModal() {
     pendingTeacherAction = null;
 }
 
-// 3. CAMBIO DE ROL (Profesor / Estudiante)
+// 4. CAMBIO DE ROL (Profesor / Estudiante)
 function switchRole(role) {
     if (role === 'teacher' && !isTeacherAuthenticated) {
         trySwitchToTeacher();
@@ -253,7 +270,7 @@ function switchRole(role) {
     renderApp();
 }
 
-// 4. MOTOR DE RENDERIZADO PRINCIPAL
+// 5. MOTOR DE RENDERIZADO PRINCIPAL
 function renderApp() {
     if (currentRole === 'teacher') {
         renderTeacherDashboard();
@@ -304,16 +321,13 @@ function changeActiveBlock(delta) {
 
     if (newBlock >= 0 && newBlock < totalBlocks) {
         surveyData.activeBlock = newBlock;
-        saveStateToStorage();
-        if (socket) {
-            socket.emit('update_poll_state', { surveyData, submissions });
-        }
+        saveStateToStorage(true);
         renderApp();
         showToast(`Bloque ${newBlock + 1} activado para los estudiantes`, "info");
     }
 }
 
-// 5. RENDIMIENTO DE GRÁFICOS (Chart.js)
+// 6. RENDIMIENTO DE GRÁFICOS (Chart.js con respuesta correcta en verde)
 function renderBlockCharts() {
     const container = document.getElementById('chartsContainer');
     if (!container) return;
@@ -378,7 +392,6 @@ function createOrUpdateChart(question) {
         chartInstances[question.id].destroy();
     }
 
-    // Colorear en verde esmeralda la respuesta correcta y en índigo las demás
     const bgColors = question.options.map(opt => 
         opt === question.correctAnswer ? 'rgba(16, 185, 129, 0.85)' : 'rgba(99, 102, 241, 0.65)'
     );
@@ -421,7 +434,6 @@ function createOrUpdateChart(question) {
     });
 }
 
-
 function renderParticipantsTable() {
     const tbody = document.getElementById('participantsTableBody');
     if (!tbody) return;
@@ -457,7 +469,7 @@ function renderParticipantsTable() {
     });
 }
 
-// 6. RENDERIZADO VISTA ESTUDIANTE
+// 7. RENDERIZADO VISTA ESTUDIANTE
 function renderStudentView() {
     const loginCard = document.getElementById('studentLoginCard');
     const formCard = document.getElementById('studentFormCard');
@@ -548,7 +560,7 @@ function handleStudentLogin(e) {
 
     if (name && id) {
         currentStudent = { name, id };
-        localStorage.setItem('classpoll_current_student_v3', JSON.stringify(currentStudent));
+        localStorage.setItem('classpoll_current_student_v4', JSON.stringify(currentStudent));
 
         if (socket) {
             socket.emit('student_joined', currentStudent);
@@ -561,7 +573,7 @@ function handleStudentLogin(e) {
 
 function studentLogout() {
     currentStudent = null;
-    localStorage.removeItem('classpoll_current_student_v3');
+    localStorage.removeItem('classpoll_current_student_v4');
     renderApp();
     showToast("Sesión cerrada correctamente", "info");
 }
@@ -593,12 +605,13 @@ function handleStudentSubmitBlock(e) {
 
     submissions[subIndex].timestamp = new Date().toISOString();
 
-    saveStateToStorage();
+    // El estudiante guarda y solo transmite sus respuestas
+    saveStateToStorage(false);
     renderApp();
     showToast("Respuestas enviadas y sincronizadas con el profesor", "success");
 }
 
-// 7. EXPORTADOR A CSV CODIFICADO
+// 8. EXPORTADOR E IMPORTADOR DE ARCHIVOS (CSV & JSON)
 function exportToCSV() {
     if (submissions.length === 0) {
         showToast("No hay datos cargados para exportar", "warning");
@@ -648,7 +661,57 @@ function exportToCSV() {
     showToast("CSV codificado descargado con éxito", "success");
 }
 
-// EDITAR ENCUESTA Y REINICIAR
+function exportSurveyJSON() {
+    if (!surveyData || !surveyData.questions) {
+        showToast("No hay encuesta válida para exportar", "warning");
+        return;
+    }
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(surveyData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `Encuesta_${(surveyData.title || 'cuestionario').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+
+    showToast("Estructura de la encuesta descargada en formato JSON", "success");
+}
+
+function triggerImportJSON() {
+    const fileInput = document.getElementById('importJsonInput');
+    if (fileInput) fileInput.click();
+}
+
+function importSurveyJSON(event) {
+    const file = event.target.files;
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const parsedData = JSON.parse(e.target.result);
+            if (parsedData && Array.isArray(parsedData.questions) && parsedData.questions.length >= 2) {
+                surveyData = parsedData;
+                if (typeof surveyData.activeBlock !== 'number') {
+                    surveyData.activeBlock = 0;
+                }
+                
+                saveStateToStorage(true);
+                renderApp();
+                showToast("Encuesta cargada exitosamente y publicada a los estudiantes", "success");
+            } else {
+                showToast("El archivo JSON debe contener al menos 2 preguntas válidas.", "warning");
+            }
+        } catch (err) {
+            showToast("Error al procesar el archivo JSON. Verifique el formato.", "warning");
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+}
+
+// 9. EDITOR DE ENCUESTAS Y REINICIO
 function openEditSurveyModal() {
     protectedAction(() => {
         const titleElem = document.getElementById('editSessionTitle');
@@ -688,7 +751,9 @@ function addNewQuestionField() {
         id: `q_${Date.now()}`,
         text: "Nueva pregunta de prueba",
         type: "multiple",
-        options: ["Opción 1", "Opción 2", "Opción 3", "Opción 4"]
+        options: ["Opción 1", "Opción 2", "Opción 3", "Opción 4"],
+        correctAnswer: null,
+        explanation: null
     });
     renderQuestionsEditor();
 }
@@ -713,7 +778,7 @@ function saveSurveyChanges() {
         if (inputElem) q.text = inputElem.value;
     });
 
-    saveStateToStorage();
+    saveStateToStorage(true);
     closeEditSurveyModal();
     renderApp();
     showToast("Encuesta actualizada", "success");
@@ -723,7 +788,7 @@ function resetData() {
     if (confirm("¿Seguro que deseas borrar todas las respuestas registradas en esta sesión?")) {
         submissions = [];
         surveyData.activeBlock = 0;
-        saveStateToStorage();
+        saveStateToStorage(true);
         if (socket) {
             socket.emit('reset_poll_data');
         }
@@ -732,7 +797,7 @@ function resetData() {
     }
 }
 
-// SISTEMA DE TOASTS
+// 10. NOTIFICACIONES DE TIPO TOAST
 function showToast(message, type = "info") {
     const container = document.getElementById('toastContainer');
     if (!container) return;
@@ -756,56 +821,4 @@ function showToast(message, type = "info") {
         toast.classList.add('opacity-0', 'translate-y-2');
         setTimeout(() => toast.remove(), 300);
     }, 3000);
-}
-
-// EXPORTAR E IMPORTAR CONFIGURACIÓN DE ENCUESTA EN JSON
-function exportSurveyJSON() {
-    if (!surveyData || !surveyData.questions) {
-        showToast("No hay encuesta válida para exportar", "warning");
-        return;
-    }
-
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(surveyData, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `Encuesta_${(surveyData.title || 'cuestionario').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-
-    showToast("Estructura de la encuesta descargada en formato JSON", "success");
-}
-
-function triggerImportJSON() {
-    const fileInput = document.getElementById('importJsonInput');
-    if (fileInput) fileInput.click();
-}
-
-function importSurveyJSON(event) {
-    const file = event.target.files;
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const parsedData = JSON.parse(e.target.result);
-            if (parsedData && Array.isArray(parsedData.questions) && parsedData.questions.length >= 2) {
-                surveyData = parsedData;
-                if (typeof surveyData.activeBlock !== 'number') {
-                    surveyData.activeBlock = 0;
-                }
-                
-                // Guardar en el almacenamiento local y transmitir por Socket.io a los estudiantes
-                saveStateToStorage();
-                renderApp();
-                showToast("Encuesta cargada exitosamente y publicada a los estudiantes", "success");
-            } else {
-                showToast("El archivo JSON debe contener un arreglo de al menos 2 preguntas válido.", "warning");
-            }
-        } catch (err) {
-            showToast("Error al procesar el archivo JSON. Verifique la sintaxis.", "warning");
-        }
-    };
-    reader.readAsText(file);
-    event.target.value = ''; // Limpiar input para permitir re-selección
 }
