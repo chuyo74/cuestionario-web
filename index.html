@@ -241,7 +241,7 @@
                 <p class="text-xs text-slate-400 mt-1">Ingresa el PIN de seguridad para acceder a la vista de profesor o realizar cambios.</p>
             </div>
             <form onsubmit="verifyPin(event)" class="space-y-4">
-                <input type="password" id="inputPin" maxlength="6" placeholder="PIN (por defecto: 1234)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-center text-white font-mono text-lg tracking-widest focus:outline-none focus:border-indigo-500">
+                <input type="password" id="inputPin" maxlength="6" placeholder="PIN" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-center text-white font-mono text-lg tracking-widest focus:outline-none focus:border-indigo-500">
                 <div class="flex gap-2">
                     <button type="button" onclick="closePinModal()" class="w-1/2 bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold py-2.5 rounded-xl text-xs transition-all">Cancelar</button>
                     <button type="submit" class="w-1/2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl text-xs shadow-lg shadow-indigo-600/30 transition-all">Ingresar</button>
@@ -296,9 +296,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-
-    <!-- CLIENTE SOCKET.IO (Requerido para la sincronización en vivo) -->
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- CLIENTE SOCKET.IO CDN (Compatibilidad garantizada en Render) -->
+    <script src="[suspicious link removed]"></script>
 
     <!-- HOJA DE ESTILOS PERSONALIZADA -->
     <link rel="stylesheet" href="styles.css">

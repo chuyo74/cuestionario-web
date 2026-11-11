@@ -1,23 +1,58 @@
 /**
  * LÓGICA DE LA APLICACIÓN DE ENCUESTAS MULTIUSUARIO
- * ----------------------------------------------------
- * Sincronización en tiempo real con Socket.io
+ * Sincronización en tiempo real con Socket.io y fallback BroadcastChannel
  */
 
-// CONEXIÓN SOCKET EN TIEMPO REAL CON RESOLUCIÓN AUTOMÁTICA Y POLLING
+// CONEXIÓN SOCKET EN TIEMPO REAL CON RECONEXIÓN AUTOMÁTICA
 let socket = null;
-try {
-    if (typeof io !== 'undefined') {
-        socket = io({
-            transports: ['polling', 'websocket'],
-            reconnection: true,
-            reconnectionAttempts: Infinity,
-            reconnectionDelay: 1000
-        });
+
+function initSocketConnection() {
+    try {
+        if (typeof io !== 'undefined' && !socket) {
+            socket = io({
+                transports: ['polling', 'websocket'],
+                reconnection: true,
+                reconnectionAttempts: Infinity,
+                reconnectionDelay: 1000
+            });
+
+            socket.on('connect', () => {
+                console.log("Conectado con éxito al servidor en vivo");
+                const badge = document.getElementById('sessionStatusBadge');
+                if (badge) {
+                    badge.textContent = "Conectado en Vivo";
+                    badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                }
+                if (currentStudent && currentStudent.id) {
+                    socket.emit('student_joined', currentStudent);
+                }
+            });
+
+            socket.on('init_state', (data) => {
+                if (data) {
+                    if (data.surveyData) surveyData = data.surveyData;
+                    if (data.submissions && data.submissions.length > 0) submissions = data.submissions;
+                    if (data.activeStudents) activeStudents = data.activeStudents;
+                    renderApp();
+                }
+            });
+
+            socket.on('poll_state_updated', (data) => {
+                if (data) {
+                    if (data.surveyData) surveyData = data.surveyData;
+                    if (data.submissions) submissions = data.submissions;
+                    if (data.activeStudents) activeStudents = data.activeStudents;
+                    renderApp();
+                }
+            });
+        }
+    } catch (e) {
+        console.log("Modo standalone/local activado", e);
     }
-} catch (e) {
-    console.log("Modo standalone/local activado");
 }
+
+// Inicializar la conexión socket inmediatamente
+initSocketConnection();
 
 // 1. DATOS POR DEFECTO Y ESTADO
 const DEFAULT_SURVEY = {
@@ -81,7 +116,7 @@ const TEACHER_PIN = "1234";
 let pendingTeacherAction = null;
 let chartInstances = {};
 
-// Sincronización en Tiempo Real entre pestañas o sockets
+// Sincronización en Tiempo Real entre pestañas locales
 const pollChannel = new BroadcastChannel('classpoll_live_sync');
 
 function saveStateToStorage() {
@@ -90,8 +125,8 @@ function saveStateToStorage() {
     localStorage.setItem('classpoll_current_student', JSON.stringify(currentStudent));
     pollChannel.postMessage({ type: 'SYNC' });
 
-    // Enviar el estado actualizado de la encuesta y las respuestas al servidor Node.js
-    if (socket && socket.connected) {
+    // Emisión directa al socket sin bloquear por estado transitorio
+    if (socket) {
         socket.emit('update_poll_state', { surveyData, submissions });
     }
 }
@@ -100,38 +135,8 @@ function saveStateToStorage() {
 window.addEventListener('DOMContentLoaded', () => {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    if (socket) {
-        socket.on('connect', () => {
-            console.log("Conectado con éxito al servidor en vivo");
-            const badge = document.getElementById('sessionStatusBadge');
-            if (badge) {
-                badge.textContent = "Conectado en Vivo";
-                badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
-            }
-            // Si el estudiante ya tiene datos en sesión, notificar al servidor de inmediato
-            if (currentStudent && currentStudent.id) {
-                socket.emit('student_joined', currentStudent);
-            }
-        });
-
-        socket.on('init_state', (data) => {
-            if (data) {
-                if (data.surveyData) surveyData = data.surveyData;
-                if (data.submissions) submissions = data.submissions;
-                if (data.activeStudents) activeStudents = data.activeStudents;
-                renderApp();
-            }
-        });
-
-        socket.on('poll_state_updated', (data) => {
-            if (data) {
-                if (data.surveyData) surveyData = data.surveyData;
-                if (data.submissions) submissions = data.submissions;
-                if (data.activeStudents) activeStudents = data.activeStudents;
-                renderApp();
-            }
-        });
-    }
+    // Reintentar conexión si no se logró al cargar el script
+    initSocketConnection();
 
     switchRole('student');
 
@@ -242,7 +247,7 @@ function renderTeacherDashboard() {
 
     const totalCountElem = document.getElementById('totalQuestionsCount');
     if (totalCountElem) totalCountElem.textContent = `${surveyData.questions.length} preguntas en total`;
-    
+
     const activeCount = activeStudents ? activeStudents.length : 0;
     const teacherSubElem = document.getElementById('teacherTotalSubmissions');
     if (teacherSubElem) teacherSubElem.textContent = `${activeCount} en línea (${submissions.length} con respuestas)`;
@@ -255,7 +260,7 @@ function renderTeacherDashboard() {
 
     const progressTextElem = document.getElementById('blockProgressText');
     if (progressTextElem) progressTextElem.textContent = `Bloque ${currentBlockIdx + 1} de ${totalBlocks}`;
-    
+
     const progressPct = ((currentBlockIdx + 1) / totalBlocks) * 100;
     const progressBarElem = document.getElementById('blockProgressBar');
     if (progressBarElem) progressBarElem.style.width = `${progressPct}%`;
@@ -276,7 +281,7 @@ function changeActiveBlock(delta) {
     if (newBlock >= 0 && newBlock < totalBlocks) {
         surveyData.activeBlock = newBlock;
         saveStateToStorage();
-        if (socket && socket.connected) {
+        if (socket) {
             socket.emit('update_poll_state', { surveyData, submissions });
         }
         renderApp();
@@ -376,7 +381,7 @@ function renderParticipantsTable() {
     const tbody = document.getElementById('participantsTableBody');
     if (!tbody) return;
     tbody.innerHTML = '';
-    
+
     const countBadge = document.getElementById('logCountBadge');
     if (countBadge) countBadge.textContent = `${submissions.length} participantes registrados`;
 
@@ -490,7 +495,7 @@ function handleStudentLogin(e) {
     e.preventDefault();
     const nameInput = document.getElementById('inputStudentName');
     const idInput = document.getElementById('inputStudentId');
-    
+
     if (!nameInput || !idInput) return;
 
     const name = nameInput.value.trim();
@@ -500,7 +505,6 @@ function handleStudentLogin(e) {
         currentStudent = { name, id };
         localStorage.setItem('classpoll_current_student', JSON.stringify(currentStudent));
 
-        // Forzar envío del evento de presencia al socket servidor
         if (socket) {
             socket.emit('student_joined', currentStudent);
         }
@@ -675,7 +679,7 @@ function resetData() {
         submissions = [];
         surveyData.activeBlock = 0;
         saveStateToStorage();
-        if (socket && socket.connected) {
+        if (socket) {
             socket.emit('reset_poll_data');
         }
         renderApp();
