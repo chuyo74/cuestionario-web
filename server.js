@@ -40,7 +40,7 @@ io.on('connection', (socket) => {
                 surveyState.activeStudents.push(studentData);
             }
         }
-        // Emitir a TODOS los clientes conectados
+        // Emitir a TODOS los clientes conectados el estado completo
         io.emit('poll_state_updated', surveyState);
     });
 
@@ -49,7 +49,7 @@ io.on('connection', (socket) => {
         if (data.surveyData) surveyState.surveyData = data.surveyData;
         if (data.submissions) surveyState.submissions = data.submissions;
         
-        // Transmitir forzadamente a TODOS los clientes
+        // Transmitir inmediatamente a TODOS los clientes conectados
         io.emit('poll_state_updated', surveyState);
     });
 

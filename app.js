@@ -90,7 +90,7 @@ function saveStateToStorage() {
     localStorage.setItem('classpoll_current_student', JSON.stringify(currentStudent));
     pollChannel.postMessage({ type: 'SYNC' });
     
-    if (socket) {
+    if (socket && socket.connected) {
         socket.emit('update_poll_state', { surveyData, submissions });
     }
 }
@@ -98,7 +98,6 @@ function saveStateToStorage() {
 // INICIALIZACIÓN MULTIUSUARIO
 window.addEventListener('DOMContentLoaded', () => {
     if (typeof lucide !== 'undefined') lucide.createIcons();
-    switchRole('student');
 
     if (socket) {
         socket.on('connect', () => {
@@ -131,6 +130,8 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    switchRole('student');
 
     pollChannel.onmessage = (event) => {
         if (event.data && event.data.type === 'SYNC') {
@@ -487,9 +488,21 @@ function handleStudentLogin(e) {
         currentStudent = { name, id };
         localStorage.setItem('classpoll_current_student', JSON.stringify(currentStudent));
 
-        if (socket) {
+        if (socket && socket.connected) {
             socket.emit('student_joined', currentStudent);
         }
+
+        renderApp();
+        showToast(`Bienvenido, ${name}`, "success");
+    }
+}
+
+function studentLogout() {
+    currentStudent = null;
+    localStorage.removeItem('classpoll_current_student');
+    renderApp();
+    showToast("Sesión cerrada correctamente", "info");
+}
 
         renderStudentView();
         showToast(`Bienvenido, ${name}`, "success");
