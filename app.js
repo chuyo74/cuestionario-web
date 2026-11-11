@@ -51,10 +51,10 @@ function initSocketConnection() {
     }
 }
 
-// Inicializar la conexión socket inmediatamente
+// Inicializar la conexión socket inmediatamente al cargar la página
 initSocketConnection();
 
-// 1. DATOS POR DEFECTO Y ESTADO
+// 1. DATOS POR DEFECTO CON PREGUNTAS INTERCALADAS CON CERTEZA
 const DEFAULT_SURVEY = {
     title: "Conceptos Fundamentales de Física y Termodinámica",
     activeBlock: 0,
@@ -64,9 +64,9 @@ const DEFAULT_SURVEY = {
             text: "Se abre una válvula permitiendo que un gas ideal se expanda libremente hacia un recipiente al vacío adyacente que está aislado térmicamente. Durante esta expansión libre, ¿qué ocurre con la temperatura del gas?",
             type: "multiple",
             options: [
-                "Aumenta",
-                "Disminuye",
-                "Permanece igual"
+                "1) Aumenta.",
+                "2) Disminuye.",
+                "3) Permanece igual."
             ]
         },
         {
@@ -86,9 +86,9 @@ const DEFAULT_SURVEY = {
             text: "Un gas realiza un ciclo termodinámico cerrado en un diagrama P-V compuesto por una expansión a alta presión seguida de una compresión a baja presión (sentido horario). ¿Cuál es el signo del trabajo neto realizado por el gas?",
             type: "multiple",
             options: [
-                "Positivo",
-                "Negativo",
-                "Cero"
+                "1) Positivo.",
+                "2) Negativo.",
+                "3) Cero."
             ]
         },
         {
@@ -106,25 +106,27 @@ const DEFAULT_SURVEY = {
     ]
 };
 
-let surveyData = JSON.parse(localStorage.getItem('classpoll_survey_v2')) || DEFAULT_SURVEY;
-let submissions = JSON.parse(localStorage.getItem('classpoll_submissions_v2')) || [];
+// Claves de almacenamiento v3 para renovar caché del navegador
+let surveyData = JSON.parse(localStorage.getItem('classpoll_survey_v3')) || DEFAULT_SURVEY;
+let submissions = JSON.parse(localStorage.getItem('classpoll_submissions_v3')) || [];
 let activeStudents = [];
-let currentStudent = JSON.parse(localStorage.getItem('classpoll_current_student_v2')) || null;
+let currentStudent = JSON.parse(localStorage.getItem('classpoll_current_student_v3')) || null;
 let currentRole = 'student';
 let isTeacherAuthenticated = false;
 const TEACHER_PIN = "1234";
 let pendingTeacherAction = null;
 let chartInstances = {};
 
-// Sincronización en Tiempo Real entre pestañas locales
+// Sincronización entre pestañas locales del mismo navegador
 const pollChannel = new BroadcastChannel('classpoll_live_sync');
 
 function saveStateToStorage() {
-    localStorage.setItem('classpoll_survey_v2', JSON.stringify(surveyData));
-    localStorage.setItem('classpoll_submissions_v2', JSON.stringify(submissions));
-    localStorage.setItem('classpoll_current_student_v2', JSON.stringify(currentStudent));
+    localStorage.setItem('classpoll_survey_v3', JSON.stringify(surveyData));
+    localStorage.setItem('classpoll_submissions_v3', JSON.stringify(submissions));
+    localStorage.setItem('classpoll_current_student_v3', JSON.stringify(currentStudent));
     pollChannel.postMessage({ type: 'SYNC' });
 
+    // Enviar evento directamente al servidor mediante Socket.io
     if (socket) {
         socket.emit('update_poll_state', { surveyData, submissions });
     }
@@ -134,15 +136,13 @@ function saveStateToStorage() {
 window.addEventListener('DOMContentLoaded', () => {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    // Reintentar conexión si no se logró al cargar el script
     initSocketConnection();
-
     switchRole('student');
 
     pollChannel.onmessage = (event) => {
         if (event.data && event.data.type === 'SYNC') {
-            surveyData = JSON.parse(localStorage.getItem('classpoll_survey')) || DEFAULT_SURVEY;
-            submissions = JSON.parse(localStorage.getItem('classpoll_submissions')) || [];
+            surveyData = JSON.parse(localStorage.getItem('classpoll_survey_v3')) || DEFAULT_SURVEY;
+            submissions = JSON.parse(localStorage.getItem('classpoll_submissions_v3')) || [];
             renderApp();
         }
     };
@@ -502,7 +502,7 @@ function handleStudentLogin(e) {
 
     if (name && id) {
         currentStudent = { name, id };
-        localStorage.setItem('classpoll_current_student', JSON.stringify(currentStudent));
+        localStorage.setItem('classpoll_current_student_v3', JSON.stringify(currentStudent));
 
         if (socket) {
             socket.emit('student_joined', currentStudent);
@@ -515,7 +515,7 @@ function handleStudentLogin(e) {
 
 function studentLogout() {
     currentStudent = null;
-    localStorage.removeItem('classpoll_current_student');
+    localStorage.removeItem('classpoll_current_student_v3');
     renderApp();
     showToast("Sesión cerrada correctamente", "info");
 }
