@@ -67,7 +67,9 @@ const DEFAULT_SURVEY = {
                 "1) Aumenta.",
                 "2) Disminuye.",
                 "3) Permanece igual."
-            ]
+            ],
+            correctAnswer: "3) Permanece igual.",
+            explanation: "Al expandirse hacia el vacío no hay fuerza opositora (W = 0). Al estar aislado térmicamente (Q = 0). Por la Primera Ley (ΔU = Q - W = 0). En un gas ideal, U depende únicamente de T, por lo que ΔT = 0."
         },
         {
             id: "q2",
@@ -79,7 +81,9 @@ const DEFAULT_SURVEY = {
                 "Certeza media",
                 "Certeza alta",
                 "Total certeza"
-            ]
+            ],
+            correctAnswer: null,
+            explanation: null
         },
         {
             id: "q3",
@@ -89,7 +93,9 @@ const DEFAULT_SURVEY = {
                 "1) Positivo.",
                 "2) Negativo.",
                 "3) Cero."
-            ]
+            ],
+            correctAnswer: "1) Positivo.",
+            explanation: "El trabajo es el área bajo la curva. La expansión a alta presión aporta trabajo positivo mayor que el trabajo negativo de la compresión a baja presión. El área encerrada en sentido horario representa un trabajo neto positivo."
         },
         {
             id: "q4",
@@ -101,7 +107,9 @@ const DEFAULT_SURVEY = {
                 "Certeza media",
                 "Certeza alta",
                 "Total certeza"
-            ]
+            ],
+            correctAnswer: null,
+            explanation: null
         }
     ]
 };
@@ -303,13 +311,25 @@ function renderBlockCharts() {
         const card = document.createElement('div');
         card.className = "bg-slate-900/60 border border-slate-700/80 rounded-xl p-5 flex flex-col justify-between space-y-4";
 
+        const correctAnswerHTML = q.correctAnswer ? `
+            <div class="mt-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-xs space-y-1">
+                <div class="font-bold text-emerald-400 flex items-center gap-1.5">
+                    <i data-lucide="check-circle-2" class="w-4 h-4"></i> Respuesta Correcta: ${q.correctAnswer}
+                </div>
+                ${q.explanation ? `<p class="text-slate-300 italic text-[11px] leading-relaxed">${q.explanation}</p>` : ''}
+            </div>
+        ` : '';
+
         card.innerHTML = `
             <div>
                 <div class="flex items-center justify-between text-xs text-indigo-400 font-semibold mb-1">
                     <span>Pregunta ${questionNumber}</span>
-                    <span class="bg-indigo-500/10 px-2 py-0.5 rounded text-indigo-300">Opción Múltiple</span>
+                    <span class="bg-indigo-500/10 px-2 py-0.5 rounded text-indigo-300">
+                        ${q.correctAnswer ? 'Evaluación' : 'Escala de Certeza'}
+                    </span>
                 </div>
                 <h4 class="font-bold text-white text-sm leading-snug">${q.text}</h4>
+                ${correctAnswerHTML}
             </div>
             <div class="relative h-56 w-full">
                 <canvas id="chart_q_${q.id}"></canvas>
@@ -341,6 +361,14 @@ function createOrUpdateChart(question) {
         chartInstances[question.id].destroy();
     }
 
+    // Colorear en verde esmeralda la respuesta correcta y en índigo las demás
+    const bgColors = question.options.map(opt => 
+        opt === question.correctAnswer ? 'rgba(16, 185, 129, 0.85)' : 'rgba(99, 102, 241, 0.65)'
+    );
+    const borderColors = question.options.map(opt => 
+        opt === question.correctAnswer ? 'rgba(16, 185, 129, 1)' : 'rgba(99, 102, 241, 1)'
+    );
+
     const ctx = canvas.getContext('2d');
     chartInstances[question.id] = new Chart(ctx, {
         type: 'bar',
@@ -349,8 +377,8 @@ function createOrUpdateChart(question) {
             datasets: [{
                 label: 'Respuestas',
                 data: counts,
-                backgroundColor: 'rgba(99, 102, 241, 0.75)',
-                borderColor: 'rgba(99, 102, 241, 1)',
+                backgroundColor: bgColors,
+                borderColor: borderColors,
                 borderWidth: 1.5,
                 borderRadius: 8
             }]
@@ -375,6 +403,7 @@ function createOrUpdateChart(question) {
         }
     });
 }
+
 
 function renderParticipantsTable() {
     const tbody = document.getElementById('participantsTableBody');
