@@ -40,7 +40,8 @@ io.on('connection', (socket) => {
                 surveyState.activeStudents.push(studentData);
             }
         }
-        io.sockets.emit('poll_state_updated', surveyState);
+        // Emitir a TODOS los clientes conectados
+        io.emit('poll_state_updated', surveyState);
     });
 
     // Cuando el profesor cambia de bloque o un alumno responde
@@ -48,22 +49,22 @@ io.on('connection', (socket) => {
         if (data.surveyData) surveyState.surveyData = data.surveyData;
         if (data.submissions) surveyState.submissions = data.submissions;
         
-        // Transmitir forzadamente a TODOS los sockets activos
-        io.sockets.emit('poll_state_updated', surveyState);
+        // Transmitir forzadamente a TODOS los clientes
+        io.emit('poll_state_updated', surveyState);
     });
 
     // Reiniciar respuestas (acción protegida docente)
     socket.on('reset_poll_data', () => {
         surveyState.submissions = [];
         if (surveyState.surveyData) surveyState.surveyData.activeBlock = 0;
-        io.sockets.emit('poll_state_updated', surveyState);
+        io.emit('poll_state_updated', surveyState);
     });
 
     socket.on('disconnect', () => {
         console.log(`[Socket] Cliente desconectado: ${socket.id}`);
         if (socket.studentData) {
             surveyState.activeStudents = surveyState.activeStudents.filter(s => s.id !== socket.studentData.id);
-            io.sockets.emit('poll_state_updated', surveyState);
+            io.emit('poll_state_updated', surveyState);
         }
     });
 });

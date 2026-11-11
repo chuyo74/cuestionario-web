@@ -90,14 +90,14 @@ function saveStateToStorage() {
     localStorage.setItem('classpoll_current_student', JSON.stringify(currentStudent));
     pollChannel.postMessage({ type: 'SYNC' });
     
-    if (socket && socket.connected) {
+    if (socket) {
         socket.emit('update_poll_state', { surveyData, submissions });
     }
 }
 
 // INICIALIZACIÓN MULTIUSUARIO
 window.addEventListener('DOMContentLoaded', () => {
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
     switchRole('student');
 
     if (socket) {
@@ -485,21 +485,15 @@ function handleStudentLogin(e) {
 
     if (name && id) {
         currentStudent = { name, id };
-        saveStateToStorage();
+        localStorage.setItem('classpoll_current_student', JSON.stringify(currentStudent));
 
-        if (socket && socket.connected) {
+        if (socket) {
             socket.emit('student_joined', currentStudent);
         }
 
         renderStudentView();
         showToast(`Bienvenido, ${name}`, "success");
     }
-}
-
-function studentLogout() {
-    currentStudent = null;
-    saveStateToStorage();
-    renderApp();
 }
 
 function handleStudentSubmitBlock(e) {
@@ -530,11 +524,6 @@ function handleStudentSubmitBlock(e) {
     submissions[subIndex].timestamp = new Date().toISOString();
 
     saveStateToStorage();
-
-    if (socket && socket.connected) {
-        socket.emit('update_poll_state', { surveyData, submissions });
-    }
-
     renderApp();
     showToast("Respuestas enviadas y sincronizadas con el profesor", "success");
 }
