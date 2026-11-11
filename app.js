@@ -743,6 +743,32 @@ function closeEditSurveyModal() {
     if (modal) modal.classList.add('hidden');
 }
 
+// Sincroniza el estado que el profesor va escribiendo en el modal antes de re-renderizar
+function syncEditorStateToData() {
+    surveyData.questions.forEach((q, qIdx) => {
+        const textElem = document.getElementById(`edit_q_text_${qIdx}`);
+        if (textElem) q.text = textElem.value;
+
+        const updatedOptions = [];
+        let oIdx = 0;
+        while (true) {
+            const optElem = document.getElementById(`edit_q_opt_${qIdx}_${oIdx}`);
+            if (!optElem) break;
+            updatedOptions.push(optElem.value);
+            oIdx++;
+        }
+        if (updatedOptions.length > 0) {
+            q.options = updatedOptions;
+        }
+
+        const correctElem = document.getElementById(`edit_q_correct_${qIdx}`);
+        if (correctElem) q.correctAnswer = correctElem.value || null;
+
+        const expElem = document.getElementById(`edit_q_explanation_${qIdx}`);
+        if (expElem) q.explanation = expElem.value || null;
+    });
+}
+
 function renderQuestionsEditor() {
     const container = document.getElementById('questionsEditorContainer');
     if (!container) return;
@@ -750,24 +776,97 @@ function renderQuestionsEditor() {
 
     surveyData.questions.forEach((q, qIdx) => {
         const qDiv = document.createElement('div');
-        qDiv.className = "bg-slate-900 border border-slate-700/80 rounded-xl p-4 space-y-3";
-        qDiv.innerHTML = `
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-indigo-400">Pregunta #${qIdx + 1}</span>
-                <button onclick="removeQuestionField(${qIdx})" class="text-xs text-red-400 hover:text-red-300">Eliminar</button>
+        qDiv.className = "bg-slate-900 border border-slate-700/80 rounded-xl p-5 space-y-4 shadow-md";
+
+        // Generar lista editable de opciones
+        let optionsHTML = q.options.map((opt, oIdx) => `
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-mono font-bold text-slate-400 w-5">${String.fromCharCode(65 + oIdx)})</span>
+                <input type="text" value="${opt.replace(/"/g, '&quot;')}" id="edit_q_opt_${qIdx}_${oIdx}" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-indigo-500">
+                <button type="button" onclick="removeOptionField(${qIdx}, ${oIdx})" class="text-xs text-red-400 hover:text-red-300 p-1" title="Eliminar opción">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
             </div>
-            <input type="text" value="${q.text}" id="edit_q_text_${qIdx}" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs">
+        `).join('');
+
+        // Generar selector de respuesta correcta basado en las opciones actuales
+        let correctOptionsHTML = `<option value="">-- Sin respuesta correcta (ej. Escala de Certeza) --</option>`;
+        q.options.forEach((opt) => {
+            const isSel = (q.correctAnswer === opt) ? 'selected' : '';
+            correctOptionsHTML += `<option value="${opt.replace(/"/g, '&quot;')}" ${isSel}>${opt}</option>`;
+        });
+
+        qDiv.innerHTML = `
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">Pregunta #${qIdx + 1}</span>
+                <button type="button" onclick="removeQuestionField(${qIdx})" class="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 font-medium">
+                    <i data-lucide="trash" class="w-3.5 h-3.5"></i> Eliminar Pregunta
+                </button>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1">Enunciado de la Pregunta</label>
+                <input type="text" value="${q.text.replace(/"/g, '&quot;')}" id="edit_q_text_${qIdx}" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Opciones de Respuesta</label>
+                    <button type="button" onclick="addOptionField(${qIdx})" class="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1">
+                        <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Añadir Opción
+                    </button>
+                </div>
+                <div class="space-y-2">
+                    ${optionsHTML}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-800">
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1">Respuesta Correcta</label>
+                    <select id="edit_q_correct_${qIdx}" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-indigo-500">
+                        ${correctOptionsHTML}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1">Retroalimentación / Explicación</label>
+                    <textarea id="edit_q_explanation_${qIdx}" rows="2" placeholder="Justificación teórica o retroalimentación..." class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-indigo-500">${q.explanation || ''}</textarea>
+                </div>
+            </div>
         `;
         container.appendChild(qDiv);
     });
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function addOptionField(qIdx) {
+    syncEditorStateToData();
+    if (surveyData.questions[qIdx]) {
+        const num = surveyData.questions[qIdx].options.length + 1;
+        surveyData.questions[qIdx].options.push(`Opción ${num}`);
+        renderQuestionsEditor();
+    }
+}
+
+function removeOptionField(qIdx, oIdx) {
+    syncEditorStateToData();
+    if (surveyData.questions[qIdx] && surveyData.questions[qIdx].options.length > 2) {
+        surveyData.questions[qIdx].options.splice(oIdx, 1);
+        renderQuestionsEditor();
+    } else {
+        showToast("Cada pregunta debe tener al menos 2 opciones.", "warning");
+    }
 }
 
 function addNewQuestionField() {
+    syncEditorStateToData();
     surveyData.questions.push({
         id: `q_${Date.now()}`,
         text: "Nueva pregunta de prueba",
         type: "multiple",
-        options: ["Opción 1", "Opción 2", "Opción 3", "Opción 4"],
+        options: ["1) Opción A", "2) Opción B", "3) Opción C"],
         correctAnswer: null,
         explanation: null
     });
@@ -775,6 +874,7 @@ function addNewQuestionField() {
 }
 
 function removeQuestionField(idx) {
+    syncEditorStateToData();
     if (surveyData.questions.length <= 2) {
         showToast("Se requieren al menos 2 preguntas para la estructura de bloques.", "warning");
         return;
@@ -790,14 +890,43 @@ function saveSurveyChanges() {
     }
 
     surveyData.questions.forEach((q, qIdx) => {
-        const inputElem = document.getElementById(`edit_q_text_${qIdx}`);
-        if (inputElem) q.text = inputElem.value;
+        const textElem = document.getElementById(`edit_q_text_${qIdx}`);
+        if (textElem && textElem.value.trim()) {
+            q.text = textElem.value.trim();
+        }
+
+        // Recopilar opciones actualizadas
+        const updatedOptions = [];
+        let oIdx = 0;
+        while (true) {
+            const optElem = document.getElementById(`edit_q_opt_${qIdx}_${oIdx}`);
+            if (!optElem) break;
+            if (optElem.value.trim()) {
+                updatedOptions.push(optElem.value.trim());
+            }
+            oIdx++;
+        }
+        if (updatedOptions.length >= 2) {
+            q.options = updatedOptions;
+        }
+
+        // Leer respuesta correcta seleccionada
+        const correctElem = document.getElementById(`edit_q_correct_${qIdx}`);
+        if (correctElem) {
+            q.correctAnswer = correctElem.value ? correctElem.value : null;
+        }
+
+        // Leer retroalimentación / explicación ingresada
+        const expElem = document.getElementById(`edit_q_explanation_${qIdx}`);
+        if (expElem) {
+            q.explanation = expElem.value.trim() ? expElem.value.trim() : null;
+        }
     });
 
     saveStateToStorage(true);
     closeEditSurveyModal();
     renderApp();
-    showToast("Encuesta actualizada", "success");
+    showToast("Encuesta, respuestas y retroalimentación guardadas", "success");
 }
 
 function resetData() {
