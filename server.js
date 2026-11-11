@@ -9,7 +9,10 @@ const io = new Server(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
-    }
+    },
+    // Habilitar transportes con fallback para garantizar compatibilidad móvil en Render
+    transports: ['polling', 'websocket'],
+    allowEIO3: true
 });
 
 // Servir los archivos estáticos de la aplicación (index.html, styles.css, app.js)
@@ -19,7 +22,7 @@ app.use(express.static(path.join(__dirname, './')));
 let surveyState = {
     surveyData: null,
     submissions: [],
-    activeStudents: [] // Nuevo: Lista de estudiantes conectados
+    activeStudents: []
 };
 
 io.on('connection', (socket) => {
@@ -31,11 +34,13 @@ io.on('connection', (socket) => {
     // Registrar inicio de sesión del estudiante
     socket.on('student_joined', (studentData) => {
         socket.studentData = studentData;
-        const exists = surveyState.activeStudents.some(s => s.id === studentData.id);
-        if (!exists) {
-            surveyState.activeStudents.push(studentData);
+        if (studentData && studentData.id) {
+            const exists = surveyState.activeStudents.some(s => s.id === studentData.id);
+            if (!exists) {
+                surveyState.activeStudents.push(studentData);
+            }
         }
-        io.emit('poll_state_updated', surveyState);
+        io.sockets.emit('poll_state_updated', surveyState);
     });
 
     // Cuando el profesor cambia de bloque o un alumno responde
@@ -43,22 +48,22 @@ io.on('connection', (socket) => {
         if (data.surveyData) surveyState.surveyData = data.surveyData;
         if (data.submissions) surveyState.submissions = data.submissions;
         
-        // Transmitir inmediatamente a TODOS los dispositivos conectados
-        io.emit('poll_state_updated', surveyState);
+        // Transmitir forzadamente a TODOS los sockets activos
+        io.sockets.emit('poll_state_updated', surveyState);
     });
 
     // Reiniciar respuestas (acción protegida docente)
     socket.on('reset_poll_data', () => {
         surveyState.submissions = [];
         if (surveyState.surveyData) surveyState.surveyData.activeBlock = 0;
-        io.emit('poll_state_updated', surveyState);
+        io.sockets.emit('poll_state_updated', surveyState);
     });
 
     socket.on('disconnect', () => {
         console.log(`[Socket] Cliente desconectado: ${socket.id}`);
         if (socket.studentData) {
             surveyState.activeStudents = surveyState.activeStudents.filter(s => s.id !== socket.studentData.id);
-            io.emit('poll_state_updated', surveyState);
+            io.sockets.emit('poll_state_updated', surveyState);
         }
     });
 });

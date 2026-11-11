@@ -3,15 +3,15 @@
  * ----------------------------------------------------
  * Incorpora resolución dinámica de Host de Socket.io para
  * sincronización en tiempo real entre Celulares y Computadora.
- */
-
-// CONEXIÓN SOCKET EN TIEMPO REAL CON RESOLUCIÓN AUTOMÁTICA DE IP
+// CONEXIÓN SOCKET EN TIEMPO REAL CON RESOLUCIÓN AUTOMÁTICA Y POLLING
 let socket = null;
 try {
     if (typeof io !== 'undefined') {
-        // Se conecta explícitamente a la IP/Origen desde donde el dispositivo abrió la página
-        socket = io(window.location.origin, {
-            transports: ['websocket', 'polling']
+        socket = io({
+            transports: ['polling', 'websocket'], // Prioriza Polling primero para mayor fiabilidad en Render
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000
         });
     }
 } catch (e) {
@@ -72,7 +72,7 @@ const DEFAULT_SURVEY = {
 
 let surveyData = JSON.parse(localStorage.getItem('classpoll_survey')) || DEFAULT_SURVEY;
 let submissions = JSON.parse(localStorage.getItem('classpoll_submissions')) || [];
-let activeStudents = []; // Nuevo: Arreglo para estudiantes activos
+let activeStudents = [];
 let currentStudent = JSON.parse(localStorage.getItem('classpoll_current_student')) || null;
 let currentRole = 'student';
 let isTeacherAuthenticated = false;
@@ -89,8 +89,7 @@ function saveStateToStorage() {
     localStorage.setItem('classpoll_current_student', JSON.stringify(currentStudent));
     pollChannel.postMessage({ type: 'SYNC' });
     
-    // Transmitir inmediatamente a través de WebSockets si el servidor está disponible
-    if (socket) {
+    if (socket && socket.connected) {
         socket.emit('update_poll_state', { surveyData, submissions });
     }
 }
@@ -102,7 +101,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (socket) {
         socket.on('connect', () => {
-            console.log("Conectado con éxito al servidor WebSocket en vivo");
+            console.log("Conectado con éxito al servidor en vivo");
             const badge = document.getElementById('sessionStatusBadge');
             if (badge) {
                 badge.textContent = "Conectado en Vivo";
@@ -123,10 +122,12 @@ window.addEventListener('DOMContentLoaded', () => {
         });
 
         socket.on('poll_state_updated', (data) => {
-            if (data.surveyData) surveyData = data.surveyData;
-            if (data.submissions) submissions = data.submissions;
-            if (data.activeStudents) activeStudents = data.activeStudents;
-            renderApp();
+            if (data) {
+                if (data.surveyData) surveyData = data.surveyData;
+                if (data.submissions) submissions = data.submissions;
+                if (data.activeStudents) activeStudents = data.activeStudents;
+                renderApp();
+            }
         });
     }
 
