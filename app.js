@@ -88,8 +88,8 @@ function saveStateToStorage() {
     localStorage.setItem('classpoll_current_student', JSON.stringify(currentStudent));
     pollChannel.postMessage({ type: 'SYNC' });
     
-    // Transmitir inmediatamente a través de WebSockets si el servidor está conectado
-    if (socket && socket.connected) {
+    // Transmitir inmediatamente a través de WebSockets si el servidor está disponible
+    if (socket) {
         socket.emit('update_poll_state', { surveyData, submissions });
     }
 }
@@ -108,6 +108,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 badge.textContent = "Conectado en Vivo";
                 badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
             }
+            // Sincronizar el estado actual al reconectarse
+            socket.emit('update_poll_state', { surveyData, submissions });
         });
 
         socket.on('init_state', (data) => {
