@@ -89,7 +89,8 @@ function saveStateToStorage() {
     localStorage.setItem('classpoll_submissions', JSON.stringify(submissions));
     localStorage.setItem('classpoll_current_student', JSON.stringify(currentStudent));
     pollChannel.postMessage({ type: 'SYNC' });
-    
+
+    // Enviar el estado actualizado de la encuesta y las respuestas al servidor Node.js
     if (socket && socket.connected) {
         socket.emit('update_poll_state', { surveyData, submissions });
     }
