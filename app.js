@@ -39,7 +39,19 @@ function initSocketConnection() {
 
             socket.on('poll_state_updated', (data) => {
                 if (data) {
-                    if (data.surveyData) surveyData = data.surveyData;
+                    if (data.surveyData) {
+                        // Preservar la respuesta correcta y explicación si la versión entrante no las trae
+                        if (surveyData && surveyData.questions) {
+                            data.surveyData.questions.forEach((q, idx) => {
+                                const localQ = surveyData.questions[idx];
+                                if (localQ) {
+                                    if (!q.correctAnswer && localQ.correctAnswer) q.correctAnswer = localQ.correctAnswer;
+                                    if (!q.explanation && localQ.explanation) q.explanation = localQ.explanation;
+                                }
+                            });
+                        }
+                        surveyData = data.surveyData;
+                    }
                     if (data.submissions) submissions = data.submissions;
                     if (data.activeStudents) activeStudents = data.activeStudents;
                     renderApp();
@@ -134,9 +146,14 @@ function saveStateToStorage() {
     localStorage.setItem('classpoll_current_student_v3', JSON.stringify(currentStudent));
     pollChannel.postMessage({ type: 'SYNC' });
 
-    // Enviar evento directamente al servidor mediante Socket.io
     if (socket) {
-        socket.emit('update_poll_state', { surveyData, submissions });
+        if (isTeacherAction) {
+            // El profesor actualiza la encuesta y las respuestas
+            socket.emit('update_poll_state', { surveyData, submissions });
+        } else {
+            // El estudiante SOLO envía las respuestas para no borrar correctAnswer/explanation
+            socket.emit('update_poll_state', { submissions });
+        }
     }
 }
 

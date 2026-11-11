@@ -50,10 +50,26 @@ io.on('connection', (socket) => {
 
     // Cuando el profesor cambia de bloque o un alumno responde
     socket.on('update_poll_state', (data) => {
-        if (data.surveyData) surveyState.surveyData = data.surveyData;
-        if (data.submissions) surveyState.submissions = data.submissions;
+        // Si viene información de encuesta, fusionar sin perder respuestas correctas
+        if (data.surveyData) {
+            if (surveyState.surveyData && surveyState.surveyData.questions) {
+                data.surveyData.questions.forEach((q, idx) => {
+                    const existingQ = surveyState.surveyData.questions[idx];
+                    if (existingQ) {
+                        if (!q.correctAnswer && existingQ.correctAnswer) q.correctAnswer = existingQ.correctAnswer;
+                        if (!q.explanation && existingQ.explanation) q.explanation = existingQ.explanation;
+                    }
+                });
+            }
+            surveyState.surveyData = data.surveyData;
+        }
+
+        // Actualizar lista de respuestas si vienen en el payload
+        if (data.submissions) {
+            surveyState.submissions = data.submissions;
+        }
         
-        // Transmitir inmediatamente a TODOS los clientes conectados
+        // Transmitir inmediatamente a todos los clientes
         io.emit('poll_state_updated', surveyState);
     });
 
