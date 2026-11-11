@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Variables Globales de Diseño */
+:root {
+--font-family-base: 'Inter', sans-serif;
+--color-bg-primary: #0f172a;
+--color-card-bg: #1e293b;
+--color-border: #334155;
+--color-accent: #6366f1;
+--color-emerald: #10b981;
+}
+
+body {
+font-family: var(--font-family-base);
+background-color: var(--color-bg-primary);
+}
+
+/* Animaciones Personalizadas */
+.animate-pulse-slow {
+animation: pulse-slow 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-slow {
+0%, 100% { opacity: 1; }
+50% { opacity: 0.5; }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+width: 8px;
+height: 8px;
+}
+::-webkit-scrollbar-track {
+background: #0f172a;
+}
+::-webkit-scrollbar-thumb {
+background: #334155;
+border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+background: #475569;
+}
