@@ -711,3 +711,55 @@ function showToast(message, type = "info") {
         setTimeout(() => toast.remove(), 300);
     }, 3000);
 }
+
+// EXPORTAR E IMPORTAR CONFIGURACIÓN DE ENCUESTA EN JSON
+function exportSurveyJSON() {
+    if (!surveyData || !surveyData.questions) {
+        showToast("No hay encuesta válida para exportar", "warning");
+        return;
+    }
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(surveyData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `Encuesta_${(surveyData.title || 'cuestionario').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+
+    showToast("Estructura de la encuesta descargada en formato JSON", "success");
+}
+
+function triggerImportJSON() {
+    const fileInput = document.getElementById('importJsonInput');
+    if (fileInput) fileInput.click();
+}
+
+function importSurveyJSON(event) {
+    const file = event.target.files;
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const parsedData = JSON.parse(e.target.result);
+            if (parsedData && Array.isArray(parsedData.questions) && parsedData.questions.length >= 2) {
+                surveyData = parsedData;
+                if (typeof surveyData.activeBlock !== 'number') {
+                    surveyData.activeBlock = 0;
+                }
+                
+                // Guardar en el almacenamiento local y transmitir por Socket.io a los estudiantes
+                saveStateToStorage();
+                renderApp();
+                showToast("Encuesta cargada exitosamente y publicada a los estudiantes", "success");
+            } else {
+                showToast("El archivo JSON debe contener un arreglo de al menos 2 preguntas válido.", "warning");
+            }
+        } catch (err) {
+            showToast("Error al procesar el archivo JSON. Verifique la sintaxis.", "warning");
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // Limpiar input para permitir re-selección
+}
