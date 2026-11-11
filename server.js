@@ -18,7 +18,8 @@ app.use(express.static(path.join(__dirname, './')));
 // Estado de la encuesta guardado en memoria del servidor
 let surveyState = {
     surveyData: null,
-    submissions: []
+    submissions: [],
+    activeStudents: [] // Nuevo: Lista de estudiantes conectados
 };
 
 io.on('connection', (socket) => {
@@ -26,6 +27,16 @@ io.on('connection', (socket) => {
 
     // Enviar el estado actual apenas se conecta un alumno o profesor
     socket.emit('init_state', surveyState);
+
+    // Registrar inicio de sesión del estudiante
+    socket.on('student_joined', (studentData) => {
+        socket.studentData = studentData;
+        const exists = surveyState.activeStudents.some(s => s.id === studentData.id);
+        if (!exists) {
+            surveyState.activeStudents.push(studentData);
+        }
+        io.emit('poll_state_updated', surveyState);
+    });
 
     // Cuando el profesor cambia de bloque o un alumno responde
     socket.on('update_poll_state', (data) => {
@@ -45,6 +56,10 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log(`[Socket] Cliente desconectado: ${socket.id}`);
+        if (socket.studentData) {
+            surveyState.activeStudents = surveyState.activeStudents.filter(s => s.id !== socket.studentData.id);
+            io.emit('poll_state_updated', surveyState);
+        }
     });
 });
 

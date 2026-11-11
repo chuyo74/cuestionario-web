@@ -72,6 +72,7 @@ const DEFAULT_SURVEY = {
 
 let surveyData = JSON.parse(localStorage.getItem('classpoll_survey')) || DEFAULT_SURVEY;
 let submissions = JSON.parse(localStorage.getItem('classpoll_submissions')) || [];
+let activeStudents = []; // Nuevo: Arreglo para estudiantes activos
 let currentStudent = JSON.parse(localStorage.getItem('classpoll_current_student')) || null;
 let currentRole = 'student';
 let isTeacherAuthenticated = false;
@@ -99,7 +100,6 @@ window.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
     switchRole('student');
 
-    // Escuchar estado inicial recibido desde el servidor Node.js
     if (socket) {
         socket.on('connect', () => {
             console.log("Conectado con éxito al servidor WebSocket en vivo");
@@ -108,31 +108,28 @@ window.addEventListener('DOMContentLoaded', () => {
                 badge.textContent = "Conectado en Vivo";
                 badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
             }
-            // Sincronizar el estado actual al reconectarse
-            socket.emit('update_poll_state', { surveyData, submissions });
+            if (currentStudent) {
+                socket.emit('student_joined', currentStudent);
+            }
         });
 
         socket.on('init_state', (data) => {
-            if (data && data.surveyData) {
-                surveyData = data.surveyData;
-                submissions = data.submissions || [];
-                localStorage.setItem('classpoll_survey', JSON.stringify(surveyData));
-                localStorage.setItem('classpoll_submissions', JSON.stringify(submissions));
+            if (data) {
+                if (data.surveyData) surveyData = data.surveyData;
+                if (data.submissions) submissions = data.submissions;
+                if (data.activeStudents) activeStudents = data.activeStudents;
                 renderApp();
             }
         });
 
-        // Escuchar cuando cualquier estudiante o profesor realice cambios remotos
         socket.on('poll_state_updated', (data) => {
             if (data.surveyData) surveyData = data.surveyData;
             if (data.submissions) submissions = data.submissions;
-            localStorage.setItem('classpoll_survey', JSON.stringify(surveyData));
-            localStorage.setItem('classpoll_submissions', JSON.stringify(submissions));
+            if (data.activeStudents) activeStudents = data.activeStudents;
             renderApp();
         });
     }
 
-    // Backup local para pruebas en la misma máquina sin servidor
     pollChannel.onmessage = (event) => {
         if (event.data && event.data.type === 'SYNC') {
             surveyData = JSON.parse(localStorage.getItem('classpoll_survey')) || DEFAULT_SURVEY;
@@ -225,7 +222,10 @@ function renderApp() {
 function renderTeacherDashboard() {
     document.getElementById('teacherSessionTitle').textContent = surveyData.title;
     document.getElementById('totalQuestionsCount').textContent = `${surveyData.questions.length} preguntas en total`;
-    document.getElementById('teacherTotalSubmissions').textContent = `${submissions.length} alumnos`;
+    
+    // Muestra los estudiantes conectados activamente vs los que han respondido
+    const activeCount = activeStudents ? activeStudents.length : 0;
+    document.getElementById('teacherTotalSubmissions').textContent = `${activeCount} en línea (${submissions.length} con respuestas)`;
 
     const totalBlocks = Math.ceil(surveyData.questions.length / 2);
     const currentBlockIdx = surveyData.activeBlock;
@@ -250,6 +250,9 @@ function changeActiveBlock(delta) {
     if (newBlock >= 0 && newBlock < totalBlocks) {
         surveyData.activeBlock = newBlock;
         saveStateToStorage();
+        if (socket && socket.connected) {
+            socket.emit('update_poll_state', { surveyData, submissions });
+        }
         renderApp();
         showToast(`Bloque ${newBlock + 1} activado para los estudiantes`, "info");
     }
@@ -455,6 +458,9 @@ function handleStudentLogin(e) {
     if (name && id) {
         currentStudent = { name, id };
         saveStateToStorage();
+        if (socket && socket.connected) {
+            socket.emit('student_joined', currentStudent);
+        }
         renderApp();
         showToast(`Bienvenido, ${name}`, "success");
     }
