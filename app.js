@@ -790,7 +790,7 @@ function renderQuestionsEditor() {
         `).join('');
 
         // Generar selector de respuesta correcta basado en las opciones actuales
-        let correctOptionsHTML = `<option value="">-- Sin respuesta correcta (ej. Escala de Certeza) --</option>`;
+        let correctOptionsHTML = `<option value="">-- Sin respuesta correcta --</option>`;
         q.options.forEach((opt) => {
             const isSel = (q.correctAnswer === opt) ? 'selected' : '';
             correctOptionsHTML += `<option value="${opt.replace(/"/g, '&quot;')}" ${isSel}>${opt}</option>`;
