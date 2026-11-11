@@ -31,16 +31,20 @@ io.on('connection', (socket) => {
     // Enviar el estado actual apenas se conecta un alumno o profesor
     socket.emit('init_state', surveyState);
 
-    // Registrar inicio de sesión del estudiante
+    // Registrar inicio de sesión del estudiante y sincronizar presencia
     socket.on('student_joined', (studentData) => {
-        socket.studentData = studentData;
         if (studentData && studentData.id) {
-            const exists = surveyState.activeStudents.some(s => s.id === studentData.id);
-            if (!exists) {
+            socket.studentData = studentData;
+            // Evitar duplicados por ID
+            const index = surveyState.activeStudents.findIndex(s => s.id === studentData.id);
+            if (index === -1) {
                 surveyState.activeStudents.push(studentData);
+            } else {
+                surveyState.activeStudents[index] = studentData;
             }
+            console.log(`[Socket] Estudiante activo: ${studentData.name} (${studentData.id})`);
         }
-        // Emitir a TODOS los clientes conectados el estado completo
+        // Emitir a TODOS los clientes conectados el estado de presencia actualizado
         io.emit('poll_state_updated', surveyState);
     });
 

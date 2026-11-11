@@ -107,7 +107,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 badge.textContent = "Conectado en Vivo";
                 badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
             }
-            if (currentStudent) {
+            // Si el estudiante ya tiene datos en sesión, notificar al servidor de inmediato
+            if (currentStudent && currentStudent.id) {
                 socket.emit('student_joined', currentStudent);
             }
         });
@@ -498,7 +499,8 @@ function handleStudentLogin(e) {
         currentStudent = { name, id };
         localStorage.setItem('classpoll_current_student', JSON.stringify(currentStudent));
 
-        if (socket && socket.connected) {
+        // Forzar envío del evento de presencia al socket servidor
+        if (socket) {
             socket.emit('student_joined', currentStudent);
         }
 
