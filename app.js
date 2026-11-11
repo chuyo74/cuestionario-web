@@ -148,9 +148,13 @@ function trySwitchToTeacher() {
         switchRole('teacher');
     } else {
         pendingTeacherAction = () => switchRole('teacher');
-        document.getElementById('inputPin').value = '';
-        document.getElementById('pinModal').classList.remove('hidden');
-        setTimeout(() => document.getElementById('inputPin').focus(), 100);
+        const pinInput = document.getElementById('inputPin');
+        const modal = document.getElementById('pinModal');
+        if (pinInput) pinInput.value = '';
+        if (modal) modal.classList.remove('hidden');
+        setTimeout(() => {
+            if (pinInput) pinInput.focus();
+        }, 100);
     }
 }
 
@@ -159,21 +163,26 @@ function protectedAction(actionCallback) {
         actionCallback();
     } else {
         pendingTeacherAction = actionCallback;
-        document.getElementById('inputPin').value = '';
-        document.getElementById('pinModal').classList.remove('hidden');
+        const pinInput = document.getElementById('inputPin');
+        const modal = document.getElementById('pinModal');
+        if (pinInput) pinInput.value = '';
+        if (modal) modal.classList.remove('hidden');
     }
 }
 
 function verifyPin(e) {
-    e.preventDefault();
-    const pinVal = document.getElementById('inputPin').value;
+    if (e) e.preventDefault();
+    const pinVal = document.getElementById('inputPin') ? document.getElementById('inputPin').value : '';
     if (pinVal === TEACHER_PIN) {
         isTeacherAuthenticated = true;
         closePinModal();
         showToast("Autenticación docente correcta", "success");
         if (pendingTeacherAction) {
-            pendingTeacherAction();
+            const action = pendingTeacherAction;
             pendingTeacherAction = null;
+            action();
+        } else {
+            switchRole('teacher');
         }
     } else {
         showToast("PIN incorrecto. Intenta de nuevo.", "warning");
@@ -181,7 +190,8 @@ function verifyPin(e) {
 }
 
 function closePinModal() {
-    document.getElementById('pinModal').classList.add('hidden');
+    const modal = document.getElementById('pinModal');
+    if (modal) modal.classList.add('hidden');
     pendingTeacherAction = null;
 }
 
