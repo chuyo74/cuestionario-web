@@ -61,46 +61,46 @@ const DEFAULT_SURVEY = {
     questions: [
         {
             id: "q1",
-            text: "¿Qué ocurre con la presión de un gas ideal si se reduce su volumen a la mitad manteniendo la temperatura constante?",
+            text: "Se abre una válvula permitiendo que un gas ideal se expanda libremente hacia un recipiente al vacío adyacente que está aislado térmicamente. Durante esta expansión libre, ¿qué ocurre con la temperatura del gas?",
             type: "multiple",
             options: [
-                "Se reduce a la mitad",
-                "Se duplica (Ley de Boyle)",
-                "Permanece inalterada",
-                "Aumenta cuatro veces"
+                "Aumenta",
+                "Disminuye",
+                "Permanece igual"
             ]
         },
         {
             id: "q2",
-            text: "Según la primera ley de la termodinámica, el cambio en la energía interna de un sistema es igual a:",
+            text: "Nivel de certeza de su respuesta:",
             type: "multiple",
             options: [
-                "El calor añadido menos el trabajo realizado",
-                "El trabajo realizado dividido entre el calor",
-                "Únicamente la temperatura final",
-                "Cero en todos los procesos reales"
+                "Total incertidumbre",
+                "Baja certeza",
+                "Certeza media",
+                "Certeza alta",
+                "Total certeza"
             ]
         },
         {
             id: "q3",
-            text: "¿Cuál es la unidad del Sistema Internacional para medir la entropía?",
+            text: "Un gas realiza un ciclo termodinámico cerrado en un diagrama P-V compuesto por una expansión a alta presión seguida de una compresión a baja presión (sentido horario). ¿Cuál es el signo del trabajo neto realizado por el gas?",
             type: "multiple",
             options: [
-                "Joule por Kelvin (J/K)",
-                "Pascal por Metro (Pa/m)",
-                "Newton por Segundo (N/s)",
-                "Calorías por Gramo (cal/g)"
+                "Positivo",
+                "Negativo",
+                "Cero"
             ]
         },
         {
             id: "q4",
-            text: "¿En qué aplicación cotidiana observas transferencia de calor principalmente por radiación?",
+            text: "Nivel de certeza de su respuesta:",
             type: "multiple",
             options: [
-                "El sol calentando la superficie de la Tierra",
-                "Agua hirviendo en una olla al fuego",
-                "Una cuchara metálica en un café caliente",
-                "El aire acondicionado enfriando una habitación"
+                "Total incertidumbre",
+                "Baja certeza",
+                "Certeza media",
+                "Certeza alta",
+                "Total certeza"
             ]
         }
     ]
