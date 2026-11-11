@@ -1,14 +1,15 @@
 /**
  * LÓGICA DE LA APLICACIÓN DE ENCUESTAS MULTIUSUARIO
  * ----------------------------------------------------
- * Incorpora resolución dinámica de Host de Socket.io para
- * sincronización en tiempo real entre Celulares y Computadora.
+ * Sincronización en tiempo real con Socket.io
+ */
+
 // CONEXIÓN SOCKET EN TIEMPO REAL CON RESOLUCIÓN AUTOMÁTICA Y POLLING
 let socket = null;
 try {
     if (typeof io !== 'undefined') {
         socket = io({
-            transports: ['polling', 'websocket'], // Prioriza Polling primero para mayor fiabilidad en Render
+            transports: ['polling', 'websocket'], // Prioriza Polling para Render
             reconnection: true,
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000
@@ -384,35 +385,40 @@ function renderStudentView() {
     const formCard = document.getElementById('studentFormCard');
 
     if (!currentStudent) {
-        loginCard.classList.remove('hidden');
-        formCard.classList.add('hidden');
+        if (loginCard) loginCard.classList.remove('hidden');
+        if (formCard) formCard.classList.add('hidden');
         return;
     }
 
-    loginCard.classList.add('hidden');
-    formCard.classList.remove('hidden');
+    if (loginCard) loginCard.classList.add('hidden');
+    if (formCard) formCard.classList.remove('hidden');
 
-    document.getElementById('studentDisplayName').textContent = currentStudent.name;
-    document.getElementById('studentDisplayId').textContent = `ID: ${currentStudent.id}`;
+    const displayName = document.getElementById('studentDisplayName');
+    const displayId = document.getElementById('studentDisplayId');
+    if (displayName) displayName.textContent = currentStudent.name;
+    if (displayId) displayId.textContent = `ID: ${currentStudent.id}`;
 
     const activeBlockIdx = surveyData.activeBlock;
     const startIndex = activeBlockIdx * 2;
     const blockQuestions = surveyData.questions.slice(startIndex, startIndex + 2);
 
-    document.getElementById('studentBlockBadge').textContent = `Bloque ${activeBlockIdx + 1} (Preguntas ${startIndex + 1} y ${startIndex + blockQuestions.length})`;
+    const blockBadge = document.getElementById('studentBlockBadge');
+    if (blockBadge) {
+        blockBadge.textContent = `Bloque ${activeBlockIdx + 1} (Preguntas ${startIndex + 1} y ${startIndex + blockQuestions.length})`;
+    }
 
     const studentSub = submissions.find(s => s.studentId === currentStudent.id);
-    const hasAnsweredBlock = blockQuestions.every(q => studentSub && studentSub.answers && studentSub.answers[q.id]);
+    const hasAnsweredBlock = blockQuestions.length > 0 && blockQuestions.every(q => studentSub && studentSub.answers && studentSub.answers[q.id]);
 
     const waitingBanner = document.getElementById('waitingBlockBanner');
     const studentForm = document.getElementById('studentBlockForm');
 
     if (hasAnsweredBlock) {
-        waitingBanner.classList.remove('hidden');
-        studentForm.classList.add('hidden');
+        if (waitingBanner) waitingBanner.classList.remove('hidden');
+        if (studentForm) studentForm.classList.add('hidden');
     } else {
-        waitingBanner.classList.add('hidden');
-        studentForm.classList.remove('hidden');
+        if (waitingBanner) waitingBanner.classList.add('hidden');
+        if (studentForm) studentForm.classList.remove('hidden');
         renderStudentQuestions(blockQuestions, studentSub);
     }
 }
@@ -453,16 +459,23 @@ function renderStudentQuestions(questions, studentSub) {
 
 function handleStudentLogin(e) {
     e.preventDefault();
-    const name = document.getElementById('inputStudentName').value.trim();
-    const id = document.getElementById('inputStudentId').value.trim();
+    const nameInput = document.getElementById('inputStudentName');
+    const idInput = document.getElementById('inputStudentId');
+    
+    if (!nameInput || !idInput) return;
+
+    const name = nameInput.value.trim();
+    const id = idInput.value.trim();
 
     if (name && id) {
         currentStudent = { name, id };
         saveStateToStorage();
+
         if (socket && socket.connected) {
             socket.emit('student_joined', currentStudent);
         }
-        renderApp();
+
+        renderStudentView();
         showToast(`Bienvenido, ${name}`, "success");
     }
 }
