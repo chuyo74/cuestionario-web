@@ -106,10 +106,10 @@ const DEFAULT_SURVEY = {
     ]
 };
 
-let surveyData = JSON.parse(localStorage.getItem('classpoll_survey')) || DEFAULT_SURVEY;
-let submissions = JSON.parse(localStorage.getItem('classpoll_submissions')) || [];
+let surveyData = JSON.parse(localStorage.getItem('classpoll_survey_v2')) || DEFAULT_SURVEY;
+let submissions = JSON.parse(localStorage.getItem('classpoll_submissions_v2')) || [];
 let activeStudents = [];
-let currentStudent = JSON.parse(localStorage.getItem('classpoll_current_student')) || null;
+let currentStudent = JSON.parse(localStorage.getItem('classpoll_current_student_v2')) || null;
 let currentRole = 'student';
 let isTeacherAuthenticated = false;
 const TEACHER_PIN = "1234";
@@ -120,12 +120,11 @@ let chartInstances = {};
 const pollChannel = new BroadcastChannel('classpoll_live_sync');
 
 function saveStateToStorage() {
-    localStorage.setItem('classpoll_survey', JSON.stringify(surveyData));
-    localStorage.setItem('classpoll_submissions', JSON.stringify(submissions));
-    localStorage.setItem('classpoll_current_student', JSON.stringify(currentStudent));
+    localStorage.setItem('classpoll_survey_v2', JSON.stringify(surveyData));
+    localStorage.setItem('classpoll_submissions_v2', JSON.stringify(submissions));
+    localStorage.setItem('classpoll_current_student_v2', JSON.stringify(currentStudent));
     pollChannel.postMessage({ type: 'SYNC' });
 
-    // Emisión directa al socket sin bloquear por estado transitorio
     if (socket) {
         socket.emit('update_poll_state', { surveyData, submissions });
     }
