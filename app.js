@@ -303,7 +303,7 @@ function renderTeacherDashboard() {
     if (selectElem) selectElem.value = qpb;
 
     const badgeElem = document.getElementById('activeBlockBadge');
-    if (badgeElem) badgeElem.textContent = `Bloque ${currentBlockIdx + 1} Activo`;
+    if (badgeElem) badgeElem.textContent = `Bloque ${currentBlockIdx + 1} activo`;
 
     const progressTextElem = document.getElementById('blockProgressText');
     if (progressTextElem) progressTextElem.textContent = `Bloque ${currentBlockIdx + 1} de ${totalBlocks}`;
@@ -363,9 +363,6 @@ function renderBlockCharts() {
             <div>
                 <div class="flex items-center justify-between text-xs text-indigo-400 font-semibold mb-1">
                     <span>Pregunta ${questionNumber}</span>
-                    <span class="bg-indigo-500/10 px-2 py-0.5 rounded text-indigo-300">
-                        ${q.correctAnswer ? 'Evaluación' : 'Escala de Certeza'}
-                    </span>
                 </div>
                 <h4 class="font-bold text-white text-sm leading-snug">${q.text}</h4>
                 ${correctAnswerHTML}
