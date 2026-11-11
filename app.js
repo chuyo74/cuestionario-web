@@ -504,11 +504,6 @@ function studentLogout() {
     showToast("Sesión cerrada correctamente", "info");
 }
 
-        renderStudentView();
-        showToast(`Bienvenido, ${name}`, "success");
-    }
-}
-
 function handleStudentSubmitBlock(e) {
     e.preventDefault();
     if (!currentStudent) return;
