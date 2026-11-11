@@ -156,7 +156,6 @@
                         <thead class="bg-slate-900/60 text-xs uppercase text-slate-400 border-b border-slate-700">
                             <tr>
                                 <th class="py-3 px-4">Estudiante</th>
-                                <th class="py-3 px-4">Carné / Identificación</th>
                                 <th class="py-3 px-4">Respuestas Completadas</th>
                                 <th class="py-3 px-4">Última Respuesta</th>
                                 <th class="py-3 px-4 text-right">Estado</th>
@@ -185,14 +184,8 @@
 
                 <form id="studentLoginForm" onsubmit="handleStudentLogin(event)" class="space-y-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Nombre Completo *</label>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Nombre o pseudónimo*</label>
                         <input type="text" id="inputStudentName" required placeholder="Ej. Isaac Newton" 
-                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Carné / Correo / ID *</label>
-                        <input type="text" id="inputStudentId" required placeholder="Ej. 20230491 o estudiante@universidad.edu" 
                             class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm">
                     </div>
 
@@ -208,7 +201,6 @@
                     <div>
                         <div class="text-xs text-indigo-400 font-semibold uppercase tracking-wider">Estudiante Activo</div>
                         <div id="studentDisplayName" class="text-lg font-bold text-white">Nombre Estudiante</div>
-                        <div id="studentDisplayId" class="text-xs text-slate-400">ID: 000000</div>
                     </div>
                     <button onclick="studentLogout()" class="text-xs text-slate-400 hover:text-red-400 underline transition-colors">
                         Cambiar Usuario

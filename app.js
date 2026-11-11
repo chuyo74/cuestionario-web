@@ -443,7 +443,7 @@ function renderParticipantsTable() {
     if (countBadge) countBadge.textContent = `${submissions.length} participantes registrados`;
 
     if (submissions.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500 italic">No hay datos registrados aún.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500 italic">No hay datos registrados aún.</td></tr>`;
         return;
     }
 
@@ -456,7 +456,6 @@ function renderParticipantsTable() {
         tr.className = "hover:bg-slate-800/50 transition-colors";
         tr.innerHTML = `
             <td class="py-3 px-4 font-semibold text-white">${sub.studentName}</td>
-            <td class="py-3 px-4 text-slate-400 font-mono">${sub.studentId}</td>
             <td class="py-3 px-4"><span class="bg-indigo-500/10 text-indigo-300 px-2 py-0.5 rounded font-mono">${answeredCount} / ${totalCount}</span></td>
             <td class="py-3 px-4 text-slate-400">${formattedDate}</td>
             <td class="py-3 px-4 text-right">
@@ -468,6 +467,7 @@ function renderParticipantsTable() {
         tbody.appendChild(tr);
     });
 }
+
 
 // 7. RENDERIZADO VISTA ESTUDIANTE
 function renderStudentView() {
@@ -484,9 +484,7 @@ function renderStudentView() {
     if (formCard) formCard.classList.remove('hidden');
 
     const displayName = document.getElementById('studentDisplayName');
-    const displayId = document.getElementById('studentDisplayId');
     if (displayName) displayName.textContent = currentStudent.name;
-    if (displayId) displayId.textContent = `ID: ${currentStudent.id}`;
 
     const activeBlockIdx = surveyData.activeBlock;
     const startIndex = activeBlockIdx * 2;
@@ -551,14 +549,14 @@ function renderStudentQuestions(questions, studentSub) {
 function handleStudentLogin(e) {
     e.preventDefault();
     const nameInput = document.getElementById('inputStudentName');
-    const idInput = document.getElementById('inputStudentId');
 
-    if (!nameInput || !idInput) return;
+    if (!nameInput) return;
 
     const name = nameInput.value.trim();
-    const id = idInput.value.trim();
 
-    if (name && id) {
+    if (name) {
+        // ID automático transparente para mantener el control de sesión en socket
+        const id = name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now().toString().slice(-4);
         currentStudent = { name, id };
         localStorage.setItem('classpoll_current_student_v4', JSON.stringify(currentStudent));
 
@@ -570,6 +568,7 @@ function handleStudentLogin(e) {
         showToast(`Bienvenido, ${name}`, "success");
     }
 }
+
 
 function studentLogout() {
     currentStudent = null;
@@ -618,7 +617,7 @@ function exportToCSV() {
         return;
     }
 
-    let headers = ["Nombre_Estudiante", "Carne_ID", "Fecha_Hora"];
+    let headers = ["Nombre_Estudiante", "Fecha_Hora"];
 
     surveyData.questions.forEach((q, idx) => {
         headers.push(`P${idx + 1}_Codigo`);
@@ -630,7 +629,6 @@ function exportToCSV() {
     submissions.forEach(sub => {
         let row = [
             `"${sub.studentName.replace(/"/g, '""')}"`,
-            `"${sub.studentId.replace(/"/g, '""')}"`,
             `"${sub.timestamp}"`
         ];
 
