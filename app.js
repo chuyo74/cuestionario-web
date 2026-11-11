@@ -9,7 +9,7 @@ let socket = null;
 try {
     if (typeof io !== 'undefined') {
         socket = io({
-            transports: ['polling', 'websocket'], // Prioriza Polling para Render
+            transports: ['polling', 'websocket'],
             reconnection: true,
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000
@@ -198,15 +198,15 @@ function switchRole(role) {
     const studentView = document.getElementById('studentView');
 
     if (role === 'teacher') {
-        btnTeacher.className = "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-white bg-indigo-600 shadow-md";
-        btnStudent.className = "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white";
-        teacherView.classList.remove('hidden');
-        studentView.classList.add('hidden');
+        if (btnTeacher) btnTeacher.className = "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-white bg-indigo-600 shadow-md";
+        if (btnStudent) btnStudent.className = "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white";
+        if (teacherView) teacherView.classList.remove('hidden');
+        if (studentView) studentView.classList.add('hidden');
     } else {
-        btnStudent.className = "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-white bg-indigo-600 shadow-md";
-        btnTeacher.className = "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white";
-        studentView.classList.remove('hidden');
-        teacherView.classList.add('hidden');
+        if (btnStudent) btnStudent.className = "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-white bg-indigo-600 shadow-md";
+        if (btnTeacher) btnTeacher.className = "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white";
+        if (studentView) studentView.classList.remove('hidden');
+        if (teacherView) teacherView.classList.add('hidden');
     }
     renderApp();
 }
@@ -218,28 +218,39 @@ function renderApp() {
     } else {
         renderStudentView();
     }
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
 }
 
 function renderTeacherDashboard() {
-    document.getElementById('teacherSessionTitle').textContent = surveyData.title;
-    document.getElementById('totalQuestionsCount').textContent = `${surveyData.questions.length} preguntas en total`;
+    const titleElem = document.getElementById('teacherSessionTitle');
+    if (titleElem) titleElem.textContent = surveyData.title;
+
+    const totalCountElem = document.getElementById('totalQuestionsCount');
+    if (totalCountElem) totalCountElem.textContent = `${surveyData.questions.length} preguntas en total`;
     
-    // Muestra los estudiantes conectados activamente vs los que han respondido
     const activeCount = activeStudents ? activeStudents.length : 0;
-    document.getElementById('teacherTotalSubmissions').textContent = `${activeCount} en línea (${submissions.length} con respuestas)`;
+    const teacherSubElem = document.getElementById('teacherTotalSubmissions');
+    if (teacherSubElem) teacherSubElem.textContent = `${activeCount} en línea (${submissions.length} con respuestas)`;
 
     const totalBlocks = Math.ceil(surveyData.questions.length / 2);
     const currentBlockIdx = surveyData.activeBlock;
 
-    document.getElementById('activeBlockBadge').textContent = `Bloque ${currentBlockIdx + 1} Activo`;
-    document.getElementById('blockProgressText').textContent = `Bloque ${currentBlockIdx + 1} de ${totalBlocks}`;
+    const badgeElem = document.getElementById('activeBlockBadge');
+    if (badgeElem) badgeElem.textContent = `Bloque ${currentBlockIdx + 1} Activo`;
+
+    const progressTextElem = document.getElementById('blockProgressText');
+    if (progressTextElem) progressTextElem.textContent = `Bloque ${currentBlockIdx + 1} de ${totalBlocks}`;
     
     const progressPct = ((currentBlockIdx + 1) / totalBlocks) * 100;
-    document.getElementById('blockProgressBar').style.width = `${progressPct}%`;
+    const progressBarElem = document.getElementById('blockProgressBar');
+    if (progressBarElem) progressBarElem.style.width = `${progressPct}%`;
 
-    document.getElementById('btnPrevBlock').disabled = currentBlockIdx === 0;
-    document.getElementById('btnNextBlock').disabled = currentBlockIdx >= totalBlocks - 1;
+    const btnPrev = document.getElementById('btnPrevBlock');
+    const btnNext = document.getElementById('btnNextBlock');
+    if (btnPrev) btnPrev.disabled = currentBlockIdx === 0;
+    if (btnNext) btnNext.disabled = currentBlockIdx >= totalBlocks - 1;
 
     renderBlockCharts();
     renderParticipantsTable();
@@ -263,6 +274,7 @@ function changeActiveBlock(delta) {
 // 5. RENDIMIENTO DE GRÁFICOS (Chart.js)
 function renderBlockCharts() {
     const container = document.getElementById('chartsContainer');
+    if (!container) return;
     container.innerHTML = '';
 
     const startIndex = surveyData.activeBlock * 2;
@@ -349,8 +361,11 @@ function createOrUpdateChart(question) {
 
 function renderParticipantsTable() {
     const tbody = document.getElementById('participantsTableBody');
+    if (!tbody) return;
     tbody.innerHTML = '';
-    document.getElementById('logCountBadge').textContent = `${submissions.length} participantes registrados`;
+    
+    const countBadge = document.getElementById('logCountBadge');
+    if (countBadge) countBadge.textContent = `${submissions.length} participantes registrados`;
 
     if (submissions.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500 italic">No hay datos registrados aún.</td></tr>`;
@@ -425,9 +440,10 @@ function renderStudentView() {
 
 function renderStudentQuestions(questions, studentSub) {
     const container = document.getElementById('studentQuestionsContainer');
+    if (!container) return;
     container.innerHTML = '';
 
-    questions.forEach((q, idx) => {
+    questions.forEach((q) => {
         const qCard = document.createElement('div');
         qCard.className = "bg-slate-800 border border-slate-700/60 rounded-2xl p-6 shadow-xl space-y-4";
 
@@ -513,10 +529,8 @@ function handleStudentSubmitBlock(e) {
 
     submissions[subIndex].timestamp = new Date().toISOString();
 
-    // Guardar en almacenamiento local y notificar por canal de pestañas
     saveStateToStorage();
 
-    // Emitir inmediatamente al servidor Node.js vía WebSocket
     if (socket && socket.connected) {
         socket.emit('update_poll_state', { surveyData, submissions });
     }
@@ -525,7 +539,7 @@ function handleStudentSubmitBlock(e) {
     showToast("Respuestas enviadas y sincronizadas con el profesor", "success");
 }
 
-// 7. EXPORTADOR A CSV CODIFICADO (PARA PROCESAMIENTO ESTADÍSTICO)
+// 7. EXPORTADOR A CSV CODIFICADO
 function exportToCSV() {
     if (submissions.length === 0) {
         showToast("No hay datos cargados para exportar", "warning");
@@ -551,11 +565,11 @@ function exportToCSV() {
         surveyData.questions.forEach(q => {
             const answerText = sub.answers ? sub.answers[q.id] : null;
             if (answerText) {
-                const optCode = q.options.indexOf(answerText) + 1; // Código 1, 2, 3...
+                const optCode = q.options.indexOf(answerText) + 1;
                 row.push(optCode);
                 row.push(`"${answerText.replace(/"/g, '""')}"`);
             } else {
-                row.push(0); // 0 = Sin respuesta
+                row.push(0);
                 row.push('"Sin Responder"');
             }
         });
@@ -578,18 +592,22 @@ function exportToCSV() {
 // EDITAR ENCUESTA Y REINICIAR
 function openEditSurveyModal() {
     protectedAction(() => {
-        document.getElementById('editSessionTitle').value = surveyData.title;
+        const titleElem = document.getElementById('editSessionTitle');
+        if (titleElem) titleElem.value = surveyData.title;
         renderQuestionsEditor();
-        document.getElementById('editSurveyModal').classList.remove('hidden');
+        const modal = document.getElementById('editSurveyModal');
+        if (modal) modal.classList.remove('hidden');
     });
 }
 
 function closeEditSurveyModal() {
-    document.getElementById('editSurveyModal').classList.add('hidden');
+    const modal = document.getElementById('editSurveyModal');
+    if (modal) modal.classList.add('hidden');
 }
 
 function renderQuestionsEditor() {
     const container = document.getElementById('questionsEditorContainer');
+    if (!container) return;
     container.innerHTML = '';
 
     surveyData.questions.forEach((q, qIdx) => {
@@ -626,8 +644,10 @@ function removeQuestionField(idx) {
 }
 
 function saveSurveyChanges() {
-    const titleVal = document.getElementById('editSessionTitle').value.trim();
-    if (titleVal) surveyData.title = titleVal;
+    const titleElem = document.getElementById('editSessionTitle');
+    if (titleElem && titleElem.value.trim()) {
+        surveyData.title = titleElem.value.trim();
+    }
 
     surveyData.questions.forEach((q, qIdx) => {
         const inputElem = document.getElementById(`edit_q_text_${qIdx}`);
@@ -656,6 +676,7 @@ function resetData() {
 // SISTEMA DE TOASTS
 function showToast(message, type = "info") {
     const container = document.getElementById('toastContainer');
+    if (!container) return;
     const toast = document.createElement('div');
 
     const colors = {
