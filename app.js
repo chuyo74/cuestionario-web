@@ -7,6 +7,7 @@
 const DEFAULT_SURVEY = {
     title: "Conceptos Fundamentales de Física y Termodinámica",
     activeBlock: 0,
+    questionsPerBlock: 2,
     questions: [
         {
             id: "q1",
@@ -293,8 +294,13 @@ function renderTeacherDashboard() {
     const teacherSubElem = document.getElementById('teacherTotalSubmissions');
     if (teacherSubElem) teacherSubElem.textContent = `${activeCount} en línea (${submissions.length} con respuestas)`;
 
-    const totalBlocks = Math.ceil(surveyData.questions.length / 2);
+    const qpb = getQuestionsPerBlock();
+    const totalBlocks = Math.ceil(surveyData.questions.length / qpb);
     const currentBlockIdx = surveyData.activeBlock;
+
+    // Actualizar el valor seleccionado en el dropdown
+    const selectElem = document.getElementById('selectQuestionsPerBlock');
+    if (selectElem) selectElem.value = qpb;
 
     const badgeElem = document.getElementById('activeBlockBadge');
     if (badgeElem) badgeElem.textContent = `Bloque ${currentBlockIdx + 1} Activo`;
@@ -316,7 +322,8 @@ function renderTeacherDashboard() {
 }
 
 function changeActiveBlock(delta) {
-    const totalBlocks = Math.ceil(surveyData.questions.length / 2);
+    const qpb = getQuestionsPerBlock();
+    const totalBlocks = Math.ceil(surveyData.questions.length / qpb);
     const newBlock = surveyData.activeBlock + delta;
 
     if (newBlock >= 0 && newBlock < totalBlocks) {
@@ -333,8 +340,9 @@ function renderBlockCharts() {
     if (!container) return;
     container.innerHTML = '';
 
-    const startIndex = surveyData.activeBlock * 2;
-    const blockQuestions = surveyData.questions.slice(startIndex, startIndex + 2);
+    const qpb = getQuestionsPerBlock();
+    const startIndex = surveyData.activeBlock * qpb;
+    const blockQuestions = surveyData.questions.slice(startIndex, startIndex + qpb);
 
     blockQuestions.forEach((q, idx) => {
         const questionNumber = startIndex + idx + 1;
@@ -486,6 +494,7 @@ function renderStudentView() {
     const displayName = document.getElementById('studentDisplayName');
     if (displayName) displayName.textContent = currentStudent.name;
 
+    const qpb = getQuestionsPerBlock();
     const activeBlockIdx = surveyData.activeBlock;
     const startIndex = activeBlockIdx * 2;
     const blockQuestions = surveyData.questions.slice(startIndex, startIndex + 2);
@@ -592,6 +601,7 @@ function handleStudentSubmitBlock(e) {
         subIndex = submissions.length - 1;
     }
 
+    const qpb = getQuestionsPerBlock();
     const startIndex = surveyData.activeBlock * 2;
     const blockQuestions = surveyData.questions.slice(startIndex, startIndex + 2);
 
@@ -617,30 +627,37 @@ function exportToCSV() {
         return;
     }
 
-    let headers = ["Nombre_Estudiante", "Fecha_Hora"];
+    let headers = ["Nombre_Estudiante"];
 
     surveyData.questions.forEach((q, idx) => {
-        headers.push(`P${idx + 1}_Codigo`);
-        headers.push(`P${idx + 1}_Texto`);
+        headers.push(`P${idx + 1}_Respuesta`);
+        headers.push(`P${idx + 1}_Correcta`);
     });
 
     let csvRows = [headers.join(",")];
 
     submissions.forEach(sub => {
         let row = [
-            `"${sub.studentName.replace(/"/g, '""')}"`,
-            `"${sub.timestamp}"`
+            `"${sub.studentName.replace(/"/g, '""')}"`
         ];
 
         surveyData.questions.forEach(q => {
             const answerText = sub.answers ? sub.answers[q.id] : null;
+            
+            // 1. Código numérico seleccionado por el estudiante (1, 2, 3... o 0 si no respondió)
             if (answerText) {
                 const optCode = q.options.indexOf(answerText) + 1;
-                row.push(optCode);
-                row.push(`"${answerText.replace(/"/g, '""')}"`);
+                row.push(optCode > 0 ? optCode : 0);
             } else {
                 row.push(0);
-                row.push('"Sin Responder"');
+            }
+
+            // 2. Código numérico de la respuesta correcta (o 0 si no aplica/escala de certeza)
+            if (q.correctAnswer) {
+                const correctCode = q.options.indexOf(q.correctAnswer) + 1;
+                row.push(correctCode > 0 ? correctCode : 0);
+            } else {
+                row.push(0); // Para preguntas de certeza u opinión sin solución fija
             }
         });
 
@@ -658,6 +675,7 @@ function exportToCSV() {
 
     showToast("CSV codificado descargado con éxito", "success");
 }
+
 
 function exportSurveyJSON() {
     if (!surveyData || !surveyData.questions) {
@@ -819,4 +837,21 @@ function showToast(message, type = "info") {
         toast.classList.add('opacity-0', 'translate-y-2');
         setTimeout(() => toast.remove(), 300);
     }, 3000);
+}
+
+// Obtener el número de preguntas por bloque (por defecto 2)
+function getQuestionsPerBlock() {
+    return (surveyData && surveyData.questionsPerBlock) ? surveyData.questionsPerBlock : 2;
+}
+
+// Función para actualizar el número de preguntas por bloque desde la vista del profesor
+function updateQuestionsPerBlock(val) {
+    const newQpb = parseInt(val, 10);
+    if (newQpb >= 1 && newQpb <= 10) {
+        surveyData.questionsPerBlock = newQpb;
+        surveyData.activeBlock = 0; // Reiniciar al primer bloque para evitar desbordamiento
+        saveStateToStorage(true);
+        renderApp();
+        showToast(`Cuestionario configurado a ${newQpb} pregunta(s) por bloque`, "info");
+    }
 }

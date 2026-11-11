@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClassPoll Live - Sistema de Encuestas en Vivo</title>
+    <title>Sistema de Encuestas en Vivo</title>
 
     <!-- LIBRERÍAS EXTERNAS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -27,9 +27,9 @@
                 </div>
                 <div>
                     <h1 class="font-bold text-lg leading-tight text-white flex items-center gap-2">
-                        ClassPoll Live <span id="sessionStatusBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">Conectando...</span>
+                        Universidad de Costa Rica <span id="sessionStatusBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">Conectando...</span>
                     </h1>
-                    <p class="text-xs text-slate-400">Encuestas dinámicas por bloques con informe por persona</p>
+                    <p class="text-xs text-slate-400">Escuela de física</p>
                 </div>
             </div>
 
@@ -75,7 +75,23 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="text-xs uppercase tracking-wider font-semibold text-indigo-400 mb-1">Control de Progreso en Vivo</div>
-                            <h3 class="text-lg font-bold text-white">Liberación por Bloques (Cada 2 Preguntas)</h3>
+                            <div class="flex items-center justify-between flex-wrap gap-2">
+                                <div>
+                                    <div class="text-xs uppercase tracking-wider font-semibold text-indigo-400 mb-1">Control de Progreso en Vivo</div>
+                                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                                        Liberación por Bloques
+                                        <span class="text-xs font-normal text-slate-400 flex items-center gap-1">
+                                            (<select id="selectQuestionsPerBlock" onchange="updateQuestionsPerBlock(this.value)" class="bg-slate-900 border border-slate-700 text-indigo-300 font-semibold rounded px-2 py-0.5 focus:outline-none focus:border-indigo-500">
+                                                <option value="1">1</option>
+                                                <option value="2" selected>2</option>
+                                                <option value="3">3</option>
+                                                <option value="4">4</option>
+                                            </select> preguntas por bloque)
+                                        </span>
+                                    </h3>
+                                </div>
+                                <span id="activeBlockBadge" class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full text-xs font-semibold">Bloque 1 Activo</span>
+                            </div>
                         </div>
                         <span id="activeBlockBadge" class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full text-xs font-semibold">Bloque 1 Activo</span>
                     </div>
