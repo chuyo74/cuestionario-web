@@ -1,15 +1,29 @@
 /**
- * LÓGICA DE LA APLICACIÓN DE ENCUESTAS MULTIUSUARIO (ClassPoll Live)
- * Sincronización en tiempo real con Socket.io y fallback local.
+ * ClassPoll Live - Lógica Principal de la Aplicación
+ * Sincronización en tiempo real con Socket.io, almacenamiento local y renderizado dinámico.
  */
-// Estado local para controlar la visibilidad de respuestas en la vista docente
-let revealedAnswers = {};
 
-// 1. ESTRUCTURA DE ENCUESTA POR DEFECTO (Preguntas + Certeza)
+// ==========================================
+// 1. CONFIGURACIÓN CENTRALIZADA (CONFIG)
+// ==========================================
+const CONFIG = Object.freeze({
+    STORAGE_KEYS: {
+        SURVEY: 'classpoll_survey_v4',
+        SUBMISSIONS: 'classpoll_submissions_v4',
+        STUDENT: 'classpoll_current_student_v4'
+    },
+    TEACHER_PIN: '1234',
+    DEFAULT_QUESTIONS_PER_BLOCK: 2,
+    SYNC_CHANNEL: 'classpoll_live_sync'
+});
+
+// ==========================================
+// 2. ENCUESTA POR DEFECTO (DEFAULT_SURVEY)
+// ==========================================
 const DEFAULT_SURVEY = {
     title: "Conceptos Fundamentales de Física y Termodinámica",
     activeBlock: 0,
-    questionsPerBlock: 2,
+    questionsPerBlock: CONFIG.DEFAULT_QUESTIONS_PER_BLOCK,
     questions: [
         {
             id: "q1",
@@ -66,7 +80,14 @@ const DEFAULT_SURVEY = {
     ]
 };
 
-// Función defensiva: garantiza que correctAnswer y explanation nunca se borren por paquetes de sincronización
+// ==========================================
+// 3. ESTADO GLOBAL DE LA APLICACIÓN (STATE)
+// ==========================================
+/**
+ * Garantiza que la estructura de la encuesta mantenga sus respuestas correctas y explicaciones teóricas.
+ * @param {Object} survey - Objeto de datos de la encuesta.
+ * @returns {Object} Encuesta enriquecida con metadatos.
+ */
 function enrichSurveyWithMetadata(survey) {
     if (!survey || !survey.questions) return survey;
     survey.questions.forEach((q, idx) => {
@@ -83,8 +104,40 @@ function enrichSurveyWithMetadata(survey) {
     return survey;
 }
 
-// 2. CONEXIÓN Y ESTADO GLOBAL DE LA APLICACIÓN
+const state = {
+    survey: enrichSurveyWithMetadata(JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.SURVEY)) || DEFAULT_SURVEY),
+    submissions: JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.SUBMISSIONS)) || [],
+    activeStudents: [],
+    currentStudent: JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.STUDENT)) || null,
+    currentRole: 'student',
+    isTeacherAuthenticated: false,
+    revealedAnswers: {},
+    chartInstances: {}
+};
+
+// ==========================================
+// 4. FUNCIONES DE UTILIDAD (SURVEY UTILS)
+// ==========================================
+const SurveyUtils = {
+    getQuestionsPerBlock: () => state.survey.questionsPerBlock || CONFIG.DEFAULT_QUESTIONS_PER_BLOCK,
+    
+    getTotalBlocks: () => {
+        const qpb = SurveyUtils.getQuestionsPerBlock();
+        return Math.ceil(state.survey.questions.length / qpb) || 1;
+    },
+
+    getCurrentBlockQuestions: () => {
+        const qpb = SurveyUtils.getQuestionsPerBlock();
+        const start = state.survey.activeBlock * qpb;
+        return state.survey.questions.slice(start, start + qpb);
+    }
+};
+
+// ==========================================
+// 5. RED Y PERSISTENCIA (SOCKET & STORAGE)
+// ==========================================
 let socket = null;
+const pollChannel = new BroadcastChannel(CONFIG.SYNC_CHANNEL);
 
 function initSocketConnection() {
     try {
@@ -97,105 +150,79 @@ function initSocketConnection() {
             });
 
             socket.on('connect', () => {
-                console.log("Conectado con éxito al servidor en vivo");
                 const badge = document.getElementById('sessionStatusBadge');
                 if (badge) {
                     badge.textContent = "Conectado en Vivo";
                     badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
                 }
-                if (currentStudent && currentStudent.id) {
-                    socket.emit('student_joined', currentStudent);
+                if (state.currentStudent && state.currentStudent.id) {
+                    socket.emit('student_joined', state.currentStudent);
                 }
             });
 
             socket.on('init_state', (data) => {
                 if (data) {
-                    if (data.surveyData) {
-                        surveyData = enrichSurveyWithMetadata(data.surveyData);
-                    }
-                    if (data.submissions && data.submissions.length > 0) {
-                        submissions = data.submissions;
-                    }
-                    if (data.activeStudents) {
-                        activeStudents = data.activeStudents;
-                    }
+                    if (data.surveyData) state.survey = enrichSurveyWithMetadata(data.surveyData);
+                    if (data.submissions && data.submissions.length > 0) state.submissions = data.submissions;
+                    if (data.activeStudents) state.activeStudents = data.activeStudents;
                     renderApp();
                 }
             });
 
             socket.on('poll_state_updated', (data) => {
                 if (data) {
-                    if (data.surveyData) {
-                        surveyData = enrichSurveyWithMetadata(data.surveyData);
-                    }
-                    if (data.submissions) {
-                        submissions = data.submissions;
-                    }
-                    if (data.activeStudents) {
-                        activeStudents = data.activeStudents;
-                    }
+                    if (data.surveyData) state.survey = enrichSurveyWithMetadata(data.surveyData);
+                    if (data.submissions) state.submissions = data.submissions;
+                    if (data.activeStudents) state.activeStudents = data.activeStudents;
                     renderApp();
                 }
             });
         }
     } catch (e) {
-        console.log("Modo standalone/local activado", e);
+        console.warn("Modo local/standalone activado:", e);
     }
 }
 
-// Inicializar conexión inmediatamente
-initSocketConnection();
-
-// Almacenamiento local con versión v4 para invalidar cachés viejas
-let surveyData = enrichSurveyWithMetadata(JSON.parse(localStorage.getItem('classpoll_survey_v4')) || DEFAULT_SURVEY);
-let submissions = JSON.parse(localStorage.getItem('classpoll_submissions_v4')) || [];
-let activeStudents = [];
-let currentStudent = JSON.parse(localStorage.getItem('classpoll_current_student_v4')) || null;
-let currentRole = 'student';
-let isTeacherAuthenticated = false;
-const TEACHER_PIN = "1234";
-let pendingTeacherAction = null;
-let chartInstances = {};
-
-// Sincronización entre pestañas locales del mismo navegador
-const pollChannel = new BroadcastChannel('classpoll_live_sync');
-
 function saveStateToStorage(isTeacherAction = false) {
-    localStorage.setItem('classpoll_survey_v4', JSON.stringify(surveyData));
-    localStorage.setItem('classpoll_submissions_v4', JSON.stringify(submissions));
-    localStorage.setItem('classpoll_current_student_v4', JSON.stringify(currentStudent));
+    localStorage.setItem(CONFIG.STORAGE_KEYS.SURVEY, JSON.stringify(state.survey));
+    localStorage.setItem(CONFIG.STORAGE_KEYS.SUBMISSIONS, JSON.stringify(state.submissions));
+    localStorage.setItem(CONFIG.STORAGE_KEYS.STUDENT, JSON.stringify(state.currentStudent));
+    
     pollChannel.postMessage({ type: 'SYNC' });
 
     if (socket) {
         if (isTeacherAction) {
-            // El profesor envía la encuesta y las respuestas
-            socket.emit('update_poll_state', { surveyData, submissions });
+            socket.emit('update_poll_state', { surveyData: state.survey, submissions: state.submissions });
         } else {
-            // El estudiante SOLO envía respuestas para no sobrescribir surveyData
-            socket.emit('update_poll_state', { submissions });
+            socket.emit('update_poll_state', { submissions: state.submissions });
         }
     }
 }
 
-// INICIALIZACIÓN AL CARGAR EL DOM
+// Inicialización de Socket y escucha entre pestañas
+initSocketConnection();
+
+pollChannel.onmessage = (event) => {
+    if (event.data && event.data.type === 'SYNC') {
+        state.survey = enrichSurveyWithMetadata(JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.SURVEY)) || DEFAULT_SURVEY);
+        state.submissions = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.SUBMISSIONS)) || [];
+        renderApp();
+    }
+};
+
 window.addEventListener('DOMContentLoaded', () => {
     if (typeof lucide !== 'undefined') lucide.createIcons();
-
     initSocketConnection();
     switchRole('student');
-
-    pollChannel.onmessage = (event) => {
-        if (event.data && event.data.type === 'SYNC') {
-            surveyData = enrichSurveyWithMetadata(JSON.parse(localStorage.getItem('classpoll_survey_v4')) || DEFAULT_SURVEY);
-            submissions = JSON.parse(localStorage.getItem('classpoll_submissions_v4')) || [];
-            renderApp();
-        }
-    };
 });
 
-// 3. SEGURIDAD Y CONTROL DE PIN
+// ==========================================
+// 6. SEGURIDAD Y ROL DOCENTE
+// ==========================================
+let pendingTeacherAction = null;
+
 function trySwitchToTeacher() {
-    if (isTeacherAuthenticated) {
+    if (state.isTeacherAuthenticated) {
         switchRole('teacher');
     } else {
         pendingTeacherAction = () => switchRole('teacher');
@@ -203,14 +230,12 @@ function trySwitchToTeacher() {
         const modal = document.getElementById('pinModal');
         if (pinInput) pinInput.value = '';
         if (modal) modal.classList.remove('hidden');
-        setTimeout(() => {
-            if (pinInput) pinInput.focus();
-        }, 100);
+        setTimeout(() => pinInput && pinInput.focus(), 100);
     }
 }
 
 function protectedAction(actionCallback) {
-    if (isTeacherAuthenticated) {
+    if (state.isTeacherAuthenticated) {
         actionCallback();
     } else {
         pendingTeacherAction = actionCallback;
@@ -224,8 +249,8 @@ function protectedAction(actionCallback) {
 function verifyPin(e) {
     if (e) e.preventDefault();
     const pinVal = document.getElementById('inputPin') ? document.getElementById('inputPin').value : '';
-    if (pinVal === TEACHER_PIN) {
-        isTeacherAuthenticated = true;
+    if (pinVal === CONFIG.TEACHER_PIN) {
+        state.isTeacherAuthenticated = true;
         closePinModal();
         showToast("Autenticación docente correcta", "success");
         if (pendingTeacherAction) {
@@ -246,14 +271,13 @@ function closePinModal() {
     pendingTeacherAction = null;
 }
 
-// 4. CAMBIO DE ROL (Profesor / Estudiante)
 function switchRole(role) {
-    if (role === 'teacher' && !isTeacherAuthenticated) {
+    if (role === 'teacher' && !state.isTeacherAuthenticated) {
         trySwitchToTeacher();
         return;
     }
 
-    currentRole = role;
+    state.currentRole = role;
     const btnTeacher = document.getElementById('btnRoleTeacher');
     const btnStudent = document.getElementById('btnRoleStudent');
     const teacherView = document.getElementById('teacherView');
@@ -273,9 +297,11 @@ function switchRole(role) {
     renderApp();
 }
 
-// 5. MOTOR DE RENDERIZADO PRINCIPAL
+// ==========================================
+// 7. MOTOR DE RENDERIZADO
+// ==========================================
 function renderApp() {
-    if (currentRole === 'teacher') {
+    if (state.currentRole === 'teacher') {
         renderTeacherDashboard();
     } else {
         renderStudentView();
@@ -287,25 +313,24 @@ function renderApp() {
 
 function renderTeacherDashboard() {
     const titleElem = document.getElementById('teacherSessionTitle');
-    if (titleElem) titleElem.textContent = surveyData.title;
+    if (titleElem) titleElem.textContent = state.survey.title;
 
     const totalCountElem = document.getElementById('totalQuestionsCount');
-    if (totalCountElem) totalCountElem.textContent = `${surveyData.questions.length} preguntas en total`;
+    if (totalCountElem) totalCountElem.textContent = `${state.survey.questions.length} preguntas en total`;
 
-    const activeCount = activeStudents ? activeStudents.length : 0;
+    const activeCount = state.activeStudents ? state.activeStudents.length : 0;
     const teacherSubElem = document.getElementById('teacherTotalSubmissions');
-    if (teacherSubElem) teacherSubElem.textContent = `${activeCount} en línea (${submissions.length} con respuestas)`;
+    if (teacherSubElem) teacherSubElem.textContent = `${activeCount} en línea (${state.submissions.length} con respuestas)`;
 
-    const qpb = getQuestionsPerBlock();
-    const totalBlocks = Math.ceil(surveyData.questions.length / qpb);
-    const currentBlockIdx = surveyData.activeBlock;
+    const qpb = SurveyUtils.getQuestionsPerBlock();
+    const totalBlocks = SurveyUtils.getTotalBlocks();
+    const currentBlockIdx = state.survey.activeBlock;
 
-    // Actualizar el valor seleccionado en el dropdown
     const selectElem = document.getElementById('selectQuestionsPerBlock');
     if (selectElem) selectElem.value = qpb;
 
     const badgeElem = document.getElementById('activeBlockBadge');
-    if (badgeElem) badgeElem.textContent = `Bloque ${currentBlockIdx + 1} activo`;
+    if (badgeElem) badgeElem.textContent = `Bloque ${currentBlockIdx + 1} Activo`;
 
     const progressTextElem = document.getElementById('blockProgressText');
     if (progressTextElem) progressTextElem.textContent = `Bloque ${currentBlockIdx + 1} de ${totalBlocks}`;
@@ -323,34 +348,47 @@ function renderTeacherDashboard() {
     renderParticipantsTable();
 }
 
+function updateQuestionsPerBlock(val) {
+    const newQpb = parseInt(val, 10);
+    if (newQpb >= 1 && newQpb <= 10) {
+        state.survey.questionsPerBlock = newQpb;
+        state.survey.activeBlock = 0;
+        saveStateToStorage(true);
+        renderApp();
+        showToast(`Configurado a ${newQpb} pregunta(s) por bloque`, "info");
+    }
+}
+
 function changeActiveBlock(delta) {
-    const qpb = getQuestionsPerBlock();
-    const totalBlocks = Math.ceil(surveyData.questions.length / qpb);
-    const newBlock = surveyData.activeBlock + delta;
+    const totalBlocks = SurveyUtils.getTotalBlocks();
+    const newBlock = state.survey.activeBlock + delta;
 
     if (newBlock >= 0 && newBlock < totalBlocks) {
-        surveyData.activeBlock = newBlock;
+        state.survey.activeBlock = newBlock;
         saveStateToStorage(true);
         renderApp();
         showToast(`Bloque ${newBlock + 1} activado para los estudiantes`, "info");
     }
 }
 
-// 6. RENDIMIENTO DE GRÁFICOS (Chart.js con respuesta correcta en verde)
+function toggleAnswerVisibility(qId) {
+    state.revealedAnswers[qId] = !state.revealedAnswers[qId];
+    renderBlockCharts();
+}
+
 function renderBlockCharts() {
     const container = document.getElementById('chartsContainer');
     if (!container) return;
     container.innerHTML = '';
 
-    const qpb = getQuestionsPerBlock();
-    const startIndex = surveyData.activeBlock * qpb;
-    const blockQuestions = surveyData.questions.slice(startIndex, startIndex + qpb);
+    const qpb = SurveyUtils.getQuestionsPerBlock();
+    const startIndex = state.survey.activeBlock * qpb;
+    const blockQuestions = SurveyUtils.getCurrentBlockQuestions();
 
     blockQuestions.forEach((q, idx) => {
         const questionNumber = startIndex + idx + 1;
-        const isRevealed = !!revealedAnswers[q.id];
+        const isRevealed = !!state.revealedAnswers[q.id];
 
-        // Botón de conmutación (Mostrar / Ocultar) si la pregunta tiene respuesta definida
         const toggleBtnHTML = q.correctAnswer ? `
             <button onclick="toggleAnswerVisibility('${q.id}')" class="px-2.5 py-1 text-xs rounded-lg font-medium flex items-center gap-1.5 transition-all ${isRevealed ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'}">
                 <i data-lucide="${isRevealed ? 'eye-off' : 'eye'}" class="w-3.5 h-3.5"></i>
@@ -399,7 +437,7 @@ function createOrUpdateChart(question) {
     if (!canvas) return;
 
     const counts = question.options.map(() => 0);
-    submissions.forEach(sub => {
+    state.submissions.forEach(sub => {
         const answer = sub.answers ? sub.answers[question.id] : null;
         if (answer) {
             const optIndex = question.options.indexOf(answer);
@@ -407,13 +445,12 @@ function createOrUpdateChart(question) {
         }
     });
 
-    if (chartInstances[question.id]) {
-        chartInstances[question.id].destroy();
+    if (state.chartInstances[question.id]) {
+        state.chartInstances[question.id].destroy();
     }
 
-    const isRevealed = !!revealedAnswers[question.id];
+    const isRevealed = !!state.revealedAnswers[question.id];
 
-    // Si la respuesta está revelada por el docente, la barra correcta se pinta de verde esmeralda
     const bgColors = question.options.map(opt => 
         (isRevealed && opt === question.correctAnswer) ? 'rgba(16, 185, 129, 0.85)' : 'rgba(99, 102, 241, 0.65)'
     );
@@ -422,7 +459,7 @@ function createOrUpdateChart(question) {
     );
 
     const ctx = canvas.getContext('2d');
-    chartInstances[question.id] = new Chart(ctx, {
+    state.chartInstances[question.id] = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: question.options.map(opt => opt.length > 25 ? opt.substring(0, 25) + '...' : opt),
@@ -462,16 +499,16 @@ function renderParticipantsTable() {
     tbody.innerHTML = '';
 
     const countBadge = document.getElementById('logCountBadge');
-    if (countBadge) countBadge.textContent = `${submissions.length} participantes registrados`;
+    if (countBadge) countBadge.textContent = `${state.submissions.length} participantes registrados`;
 
-    if (submissions.length === 0) {
+    if (state.submissions.length === 0) {
         tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500 italic">No hay datos registrados aún.</td></tr>`;
         return;
     }
 
-    submissions.forEach(sub => {
+    state.submissions.forEach(sub => {
         const answeredCount = Object.keys(sub.answers || {}).length;
-        const totalCount = surveyData.questions.length;
+        const totalCount = state.survey.questions.length;
         const formattedDate = new Date(sub.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
         const tr = document.createElement('tr');
@@ -490,13 +527,14 @@ function renderParticipantsTable() {
     });
 }
 
-
-// 7. RENDERIZADO VISTA ESTUDIANTE
+// ==========================================
+// 8. VISTA ESTUDIANTE Y FORMULARIOS
+// ==========================================
 function renderStudentView() {
     const loginCard = document.getElementById('studentLoginCard');
     const formCard = document.getElementById('studentFormCard');
 
-    if (!currentStudent) {
+    if (!state.currentStudent) {
         if (loginCard) loginCard.classList.remove('hidden');
         if (formCard) formCard.classList.add('hidden');
         return;
@@ -506,19 +544,19 @@ function renderStudentView() {
     if (formCard) formCard.classList.remove('hidden');
 
     const displayName = document.getElementById('studentDisplayName');
-    if (displayName) displayName.textContent = currentStudent.name;
+    if (displayName) displayName.textContent = state.currentStudent.name;
 
-    const qpb = getQuestionsPerBlock();
-    const activeBlockIdx = surveyData.activeBlock;
-    const startIndex = activeBlockIdx * 2;
-    const blockQuestions = surveyData.questions.slice(startIndex, startIndex + 2);
+    const qpb = SurveyUtils.getQuestionsPerBlock();
+    const activeBlockIdx = state.survey.activeBlock;
+    const startIndex = activeBlockIdx * qpb;
+    const blockQuestions = SurveyUtils.getCurrentBlockQuestions();
 
     const blockBadge = document.getElementById('studentBlockBadge');
     if (blockBadge) {
         blockBadge.textContent = `Bloque ${activeBlockIdx + 1} (Preguntas ${startIndex + 1} y ${startIndex + blockQuestions.length})`;
     }
 
-    const studentSub = submissions.find(s => s.studentId === currentStudent.id);
+    const studentSub = state.submissions.find(s => s.studentId === state.currentStudent.id);
     const hasAnsweredBlock = blockQuestions.length > 0 && blockQuestions.every(q => studentSub && studentSub.answers && studentSub.answers[q.id]);
 
     const waitingBanner = document.getElementById('waitingBlockBanner');
@@ -558,7 +596,7 @@ function renderStudentQuestions(questions, studentSub) {
 
         qCard.innerHTML = `
             <div class="space-y-1">
-                <span class="text-xs font-semibold text-indigo-400 uppercase tracking-wider">Pregunta #${surveyData.questions.indexOf(q) + 1}</span>
+                <span class="text-xs font-semibold text-indigo-400 uppercase tracking-wider">Pregunta #${state.survey.questions.indexOf(q) + 1}</span>
                 <h3 class="text-base font-bold text-white leading-snug">${q.text}</h3>
             </div>
             <div class="space-y-2.5">
@@ -572,19 +610,16 @@ function renderStudentQuestions(questions, studentSub) {
 function handleStudentLogin(e) {
     e.preventDefault();
     const nameInput = document.getElementById('inputStudentName');
-
     if (!nameInput) return;
 
     const name = nameInput.value.trim();
-
     if (name) {
-        // ID automático transparente para mantener el control de sesión en socket
         const id = name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now().toString().slice(-4);
-        currentStudent = { name, id };
-        localStorage.setItem('classpoll_current_student_v4', JSON.stringify(currentStudent));
+        state.currentStudent = { name, id };
+        localStorage.setItem(CONFIG.STORAGE_KEYS.STUDENT, JSON.stringify(state.currentStudent));
 
         if (socket) {
-            socket.emit('student_joined', currentStudent);
+            socket.emit('student_joined', state.currentStudent);
         }
 
         renderApp();
@@ -592,73 +627,68 @@ function handleStudentLogin(e) {
     }
 }
 
-
 function studentLogout() {
-    currentStudent = null;
-    localStorage.removeItem('classpoll_current_student_v4');
+    state.currentStudent = null;
+    localStorage.removeItem(CONFIG.STORAGE_KEYS.STUDENT);
     renderApp();
     showToast("Sesión cerrada correctamente", "info");
 }
 
 function handleStudentSubmitBlock(e) {
     e.preventDefault();
-    if (!currentStudent) return;
+    if (!state.currentStudent) return;
 
-    let subIndex = submissions.findIndex(s => s.studentId === currentStudent.id);
+    let subIndex = state.submissions.findIndex(s => s.studentId === state.currentStudent.id);
     if (subIndex === -1) {
-        submissions.push({
-            studentName: currentStudent.name,
-            studentId: currentStudent.id,
+        state.submissions.push({
+            studentName: state.currentStudent.name,
+            studentId: state.currentStudent.id,
             timestamp: new Date().toISOString(),
             answers: {}
         });
-        subIndex = submissions.length - 1;
+        subIndex = state.submissions.length - 1;
     }
 
-    const qpb = getQuestionsPerBlock();
-    const startIndex = surveyData.activeBlock * 2;
-    const blockQuestions = surveyData.questions.slice(startIndex, startIndex + 2);
+    const blockQuestions = SurveyUtils.getCurrentBlockQuestions();
 
     blockQuestions.forEach(q => {
         const selected = document.querySelector(`input[name="question_${q.id}"]:checked`);
         if (selected) {
-            submissions[subIndex].answers[q.id] = selected.value;
+            state.submissions[subIndex].answers[q.id] = selected.value;
         }
     });
 
-    submissions[subIndex].timestamp = new Date().toISOString();
+    state.submissions[subIndex].timestamp = new Date().toISOString();
 
-    // El estudiante guarda y solo transmite sus respuestas
     saveStateToStorage(false);
     renderApp();
     showToast("Respuestas enviadas y sincronizadas con el profesor", "success");
 }
 
-// 8. EXPORTADOR E IMPORTADOR DE ARCHIVOS (CSV & JSON)
+// ==========================================
+// 9. EXPORTACIÓN E IMPORTACIÓN (CSV & JSON)
+// ==========================================
 function exportToCSV() {
-    if (submissions.length === 0) {
+    if (state.submissions.length === 0) {
         showToast("No hay datos cargados para exportar", "warning");
         return;
     }
 
     let headers = ["Nombre_Estudiante"];
-
-    surveyData.questions.forEach((q, idx) => {
+    state.survey.questions.forEach((q, idx) => {
         headers.push(`P${idx + 1}_Respuesta`);
         headers.push(`P${idx + 1}_Correcta`);
     });
 
     let csvRows = [headers.join(",")];
 
-    submissions.forEach(sub => {
+    state.submissions.forEach(sub => {
         let row = [
             `"${sub.studentName.replace(/"/g, '""')}"`
         ];
 
-        surveyData.questions.forEach(q => {
+        state.survey.questions.forEach(q => {
             const answerText = sub.answers ? sub.answers[q.id] : null;
-            
-            // 1. Código numérico seleccionado por el estudiante (1, 2, 3... o 0 si no respondió)
             if (answerText) {
                 const optCode = q.options.indexOf(answerText) + 1;
                 row.push(optCode > 0 ? optCode : 0);
@@ -666,12 +696,11 @@ function exportToCSV() {
                 row.push(0);
             }
 
-            // 2. Código numérico de la respuesta correcta (o 0 si no aplica/escala de certeza)
             if (q.correctAnswer) {
                 const correctCode = q.options.indexOf(q.correctAnswer) + 1;
                 row.push(correctCode > 0 ? correctCode : 0);
             } else {
-                row.push(0); // Para preguntas de certeza u opinión sin solución fija
+                row.push(0);
             }
         });
 
@@ -690,17 +719,16 @@ function exportToCSV() {
     showToast("CSV codificado descargado con éxito", "success");
 }
 
-
 function exportSurveyJSON() {
-    if (!surveyData || !surveyData.questions) {
+    if (!state.survey || !state.survey.questions) {
         showToast("No hay encuesta válida para exportar", "warning");
         return;
     }
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(surveyData, null, 2));
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.survey, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `Encuesta_${(surveyData.title || 'cuestionario').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`);
+    downloadAnchor.setAttribute("download", `Encuesta_${(state.survey.title || 'cuestionario').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -714,7 +742,7 @@ function triggerImportJSON() {
 }
 
 function importSurveyJSON(event) {
-    const file = event.target.files;
+    const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
@@ -722,9 +750,9 @@ function importSurveyJSON(event) {
         try {
             const parsedData = JSON.parse(e.target.result);
             if (parsedData && Array.isArray(parsedData.questions) && parsedData.questions.length >= 2) {
-                surveyData = parsedData;
-                if (typeof surveyData.activeBlock !== 'number') {
-                    surveyData.activeBlock = 0;
+                state.survey = parsedData;
+                if (typeof state.survey.activeBlock !== 'number') {
+                    state.survey.activeBlock = 0;
                 }
                 
                 saveStateToStorage(true);
@@ -741,11 +769,13 @@ function importSurveyJSON(event) {
     event.target.value = '';
 }
 
-// 9. EDITOR DE ENCUESTAS Y REINICIO
+// ==========================================
+// 10. EDITOR AVANZADO DE ENCUESTAS
+// ==========================================
 function openEditSurveyModal() {
     protectedAction(() => {
         const titleElem = document.getElementById('editSessionTitle');
-        if (titleElem) titleElem.value = surveyData.title;
+        if (titleElem) titleElem.value = state.survey.title;
         renderQuestionsEditor();
         const modal = document.getElementById('editSurveyModal');
         if (modal) modal.classList.remove('hidden');
@@ -757,9 +787,8 @@ function closeEditSurveyModal() {
     if (modal) modal.classList.add('hidden');
 }
 
-// Sincroniza el estado que el profesor va escribiendo en el modal antes de re-renderizar
 function syncEditorStateToData() {
-    surveyData.questions.forEach((q, qIdx) => {
+    state.survey.questions.forEach((q, qIdx) => {
         const textElem = document.getElementById(`edit_q_text_${qIdx}`);
         if (textElem) q.text = textElem.value;
 
@@ -788,11 +817,10 @@ function renderQuestionsEditor() {
     if (!container) return;
     container.innerHTML = '';
 
-    surveyData.questions.forEach((q, qIdx) => {
+    state.survey.questions.forEach((q, qIdx) => {
         const qDiv = document.createElement('div');
         qDiv.className = "bg-slate-900 border border-slate-700/80 rounded-xl p-5 space-y-4 shadow-md";
 
-        // Generar lista editable de opciones
         let optionsHTML = q.options.map((opt, oIdx) => `
             <div class="flex items-center gap-2">
                 <span class="text-xs font-mono font-bold text-slate-400 w-5">${String.fromCharCode(65 + oIdx)})</span>
@@ -803,8 +831,7 @@ function renderQuestionsEditor() {
             </div>
         `).join('');
 
-        // Generar selector de respuesta correcta basado en las opciones actuales
-        let correctOptionsHTML = `<option value="">-- Sin respuesta correcta --</option>`;
+        let correctOptionsHTML = `<option value="">-- Sin respuesta correcta (ej. Escala de Certeza) --</option>`;
         q.options.forEach((opt) => {
             const isSel = (q.correctAnswer === opt) ? 'selected' : '';
             correctOptionsHTML += `<option value="${opt.replace(/"/g, '&quot;')}" ${isSel}>${opt}</option>`;
@@ -857,17 +884,17 @@ function renderQuestionsEditor() {
 
 function addOptionField(qIdx) {
     syncEditorStateToData();
-    if (surveyData.questions[qIdx]) {
-        const num = surveyData.questions[qIdx].options.length + 1;
-        surveyData.questions[qIdx].options.push(`Opción ${num}`);
+    if (state.survey.questions[qIdx]) {
+        const num = state.survey.questions[qIdx].options.length + 1;
+        state.survey.questions[qIdx].options.push(`Opción ${num}`);
         renderQuestionsEditor();
     }
 }
 
 function removeOptionField(qIdx, oIdx) {
     syncEditorStateToData();
-    if (surveyData.questions[qIdx] && surveyData.questions[qIdx].options.length > 2) {
-        surveyData.questions[qIdx].options.splice(oIdx, 1);
+    if (state.survey.questions[qIdx] && state.survey.questions[qIdx].options.length > 2) {
+        state.survey.questions[qIdx].options.splice(oIdx, 1);
         renderQuestionsEditor();
     } else {
         showToast("Cada pregunta debe tener al menos 2 opciones.", "warning");
@@ -876,7 +903,7 @@ function removeOptionField(qIdx, oIdx) {
 
 function addNewQuestionField() {
     syncEditorStateToData();
-    surveyData.questions.push({
+    state.survey.questions.push({
         id: `q_${Date.now()}`,
         text: "Nueva pregunta de prueba",
         type: "multiple",
@@ -889,27 +916,26 @@ function addNewQuestionField() {
 
 function removeQuestionField(idx) {
     syncEditorStateToData();
-    if (surveyData.questions.length <= 2) {
+    if (state.survey.questions.length <= 2) {
         showToast("Se requieren al menos 2 preguntas para la estructura de bloques.", "warning");
         return;
     }
-    surveyData.questions.splice(idx, 1);
+    state.survey.questions.splice(idx, 1);
     renderQuestionsEditor();
 }
 
 function saveSurveyChanges() {
     const titleElem = document.getElementById('editSessionTitle');
     if (titleElem && titleElem.value.trim()) {
-        surveyData.title = titleElem.value.trim();
+        state.survey.title = titleElem.value.trim();
     }
 
-    surveyData.questions.forEach((q, qIdx) => {
+    state.survey.questions.forEach((q, qIdx) => {
         const textElem = document.getElementById(`edit_q_text_${qIdx}`);
         if (textElem && textElem.value.trim()) {
             q.text = textElem.value.trim();
         }
 
-        // Recopilar opciones actualizadas
         const updatedOptions = [];
         let oIdx = 0;
         while (true) {
@@ -924,13 +950,11 @@ function saveSurveyChanges() {
             q.options = updatedOptions;
         }
 
-        // Leer respuesta correcta seleccionada
         const correctElem = document.getElementById(`edit_q_correct_${qIdx}`);
         if (correctElem) {
             q.correctAnswer = correctElem.value ? correctElem.value : null;
         }
 
-        // Leer retroalimentación / explicación ingresada
         const expElem = document.getElementById(`edit_q_explanation_${qIdx}`);
         if (expElem) {
             q.explanation = expElem.value.trim() ? expElem.value.trim() : null;
@@ -943,10 +967,14 @@ function saveSurveyChanges() {
     showToast("Encuesta, respuestas y retroalimentación guardadas", "success");
 }
 
+// ==========================================
+// 11. REINICIO DE DATOS Y NOTIFICACIONES
+// ==========================================
 function resetData() {
     if (confirm("¿Seguro que deseas borrar todas las respuestas registradas en esta sesión?")) {
-        submissions = [];
-        surveyData.activeBlock = 0;
+        state.submissions = [];
+        state.survey.activeBlock = 0;
+        state.revealedAnswers = {};
         saveStateToStorage(true);
         if (socket) {
             socket.emit('reset_poll_data');
@@ -956,7 +984,6 @@ function resetData() {
     }
 }
 
-// 10. NOTIFICACIONES DE TIPO TOAST
 function showToast(message, type = "info") {
     const container = document.getElementById('toastContainer');
     if (!container) return;
@@ -972,35 +999,9 @@ function showToast(message, type = "info") {
     toast.innerHTML = `<span>${message}</span>`;
 
     container.appendChild(toast);
-    setTimeout(() => {
-        toast.classList.remove('opacity-0', 'translate-y-2');
-    }, 10);
-
+    setTimeout(() => toast.classList.remove('opacity-0', 'translate-y-2'), 10);
     setTimeout(() => {
         toast.classList.add('opacity-0', 'translate-y-2');
         setTimeout(() => toast.remove(), 300);
     }, 3000);
-}
-
-// Obtener el número de preguntas por bloque (por defecto 2)
-function getQuestionsPerBlock() {
-    return (surveyData && surveyData.questionsPerBlock) ? surveyData.questionsPerBlock : 2;
-}
-
-// Función para actualizar el número de preguntas por bloque desde la vista del profesor
-function updateQuestionsPerBlock(val) {
-    const newQpb = parseInt(val, 10);
-    if (newQpb >= 1 && newQpb <= 10) {
-        surveyData.questionsPerBlock = newQpb;
-        surveyData.activeBlock = 0; // Reiniciar al primer bloque para evitar desbordamiento
-        saveStateToStorage(true);
-        renderApp();
-        showToast(`Cuestionario configurado a ${newQpb} pregunta(s) por bloque`, "info");
-    }
-}
-
-// Función para alternar la visibilidad de la solución en la tarjeta del profesor
-function toggleAnswerVisibility(qId) {
-    revealedAnswers[qId] = !revealedAnswers[qId];
-    renderBlockCharts();
 }
