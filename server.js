@@ -37,8 +37,30 @@ const DEFAULT_SURVEY = {
     ]
 };
 
-// Almacén global de salas en memoria RAM: { "CODIGO_SALA": { code, surveyData, submissions, activeStudents } }
+// Almacén global de salas en RAM: { "CODIGO": { code, surveyData, submissions, activeStudents, lastActivity } }
 const rooms = {};
+
+// Tiempo de inactividad permitido: 36 horas en milisegundos
+const INACTIVITY_TIMEOUT_MS = 36 * 60 * 60 * 1000;
+
+// RECOLECTOR DE BASURA PERIÓDICO (Ejecutado cada 1 hora)
+setInterval(() => {
+    const now = Date.now();
+    for (const code in rooms) {
+        if (now - rooms[code].lastActivity > INACTIVITY_TIMEOUT_MS) {
+            console.log(`[Auto-Purga] Eliminando sala "${code}" por inactividad superior a 36 horas.`);
+            
+            // Notificar y expulsar posibles clientes conectados
+            io.to(code).emit('room_error', { 
+                message: `La sala "${code}" ha sido eliminada automáticamente tras 36 horas de inactividad.` 
+            });
+            io.in(code).socketsLeave(code);
+
+            // Eliminar de memoria
+            delete rooms[code];
+        }
+    }
+}, 60 * 60 * 1000); // Chequeo cada 60 minutos
 
 io.on('connection', (socket) => {
     console.log(`[Socket] Cliente conectado: ${socket.id}`);
@@ -52,7 +74,6 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // Validación de duplicados
         if (rooms[code]) {
             socket.emit('room_error', { 
                 message: `El nombre de sala "${code}" ya existe. Por favor elige o genera otro nombre.` 
@@ -60,12 +81,12 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // Crear nueva sala
         rooms[code] = {
             code: code,
             surveyData: JSON.parse(JSON.stringify(DEFAULT_SURVEY)),
             submissions: [],
-            activeStudents: []
+            activeStudents: [],
+            lastActivity: Date.now() // Registrar hora de creación
         };
         console.log(`[Sala Creada] Profesor creó la sala: ${code}`);
 
@@ -74,7 +95,7 @@ io.on('connection', (socket) => {
         socket.emit('init_state', rooms[code]);
     });
 
-    // 2. UNIRSE A UNA SALA EXISTENTE (Estudiantes o Reconexión Docente)
+    // 2. UNIRSE A UNA SALA EXISTENTE
     socket.on('join_room', ({ roomCode, role, studentData }) => {
         const code = (roomCode || '').toUpperCase().trim();
 
@@ -83,13 +104,15 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // Validar que la sala exista
         if (!rooms[code]) {
             socket.emit('room_error', { 
                 message: `La sala "${code}" no existe o el profesor aún no la ha creado.` 
             });
             return;
         }
+
+        // Renovar marca de actividad
+        rooms[code].lastActivity = Date.now();
 
         socket.roomCode = code;
         socket.join(code);
@@ -109,7 +132,7 @@ io.on('connection', (socket) => {
         io.to(code).emit('poll_state_updated', rooms[code]);
     });
 
-    // 3. ELIMINAR SALA EXISTENTE
+    // 3. ELIMINAR SALA MANUALMENTE POR EL PROFESOR
     socket.on('delete_room', ({ roomCode }) => {
         const code = (roomCode || '').toUpperCase().trim();
 
@@ -119,7 +142,7 @@ io.on('connection', (socket) => {
             });
             io.in(code).socketsLeave(code);
             delete rooms[code];
-            console.log(`[Sala Eliminada] ${code}`);
+            console.log(`[Sala Eliminada Manualmente] ${code}`);
         } else {
             socket.emit('room_error', { message: `La sala "${code}" no existe.` });
         }
@@ -131,6 +154,9 @@ io.on('connection', (socket) => {
         if (!room || !rooms[room]) return;
 
         const currentRoom = rooms[room];
+
+        // Renovar marca de actividad
+        currentRoom.lastActivity = Date.now();
 
         if (data.surveyData) {
             if (currentRoom.surveyData && currentRoom.surveyData.questions) {
@@ -156,6 +182,7 @@ io.on('connection', (socket) => {
     socket.on('reset_poll_data', () => {
         const room = socket.roomCode;
         if (room && rooms[room]) {
+            rooms[room].lastActivity = Date.now(); // Renovar marca de actividad
             rooms[room].submissions = [];
             if (rooms[room].surveyData) rooms[room].surveyData.activeBlock = 0;
             io.to(room).emit('poll_state_updated', rooms[room]);
