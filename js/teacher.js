@@ -214,7 +214,6 @@ export function renderParticipantsTable() {
     });
 }
 
-// EDITOR DE ENCUESTAS
 export function openEditSurveyModal() {
     protectedAction(() => {
         const titleElem = document.getElementById('editSessionTitle');
