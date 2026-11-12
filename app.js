@@ -2,6 +2,8 @@
  * LÓGICA DE LA APLICACIÓN DE ENCUESTAS MULTIUSUARIO (ClassPoll Live)
  * Sincronización en tiempo real con Socket.io y fallback local.
  */
+// Estado local para controlar la visibilidad de respuestas en la vista docente
+let revealedAnswers = {};
 
 // 1. ESTRUCTURA DE ENCUESTA POR DEFECTO (Preguntas + Certeza)
 const DEFAULT_SURVEY = {
@@ -346,23 +348,33 @@ function renderBlockCharts() {
 
     blockQuestions.forEach((q, idx) => {
         const questionNumber = startIndex + idx + 1;
+        const isRevealed = !!revealedAnswers[q.id];
 
-        const card = document.createElement('div');
-        card.className = "bg-slate-900/60 border border-slate-700/80 rounded-xl p-5 flex flex-col justify-between space-y-4";
+        // Botón de conmutación (Mostrar / Ocultar) si la pregunta tiene respuesta definida
+        const toggleBtnHTML = q.correctAnswer ? `
+            <button onclick="toggleAnswerVisibility('${q.id}')" class="px-2.5 py-1 text-xs rounded-lg font-medium flex items-center gap-1.5 transition-all ${isRevealed ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'}">
+                <i data-lucide="${isRevealed ? 'eye-off' : 'eye'}" class="w-3.5 h-3.5"></i>
+                <span>${isRevealed ? 'Ocultar Respuesta' : 'Mostrar Respuesta'}</span>
+            </button>
+        ` : '';
 
         const correctAnswerHTML = q.correctAnswer ? `
-            <div class="mt-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-xs space-y-1">
+            <div id="answer_box_${q.id}" class="${isRevealed ? '' : 'hidden'} mt-3 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs space-y-1 transition-all">
                 <div class="font-bold text-emerald-400 flex items-center gap-1.5">
                     <i data-lucide="check-circle-2" class="w-4 h-4"></i> Respuesta Correcta: ${q.correctAnswer}
                 </div>
-                ${q.explanation ? `<p class="text-slate-300 italic text-[11px] leading-relaxed">${q.explanation}</p>` : ''}
+                ${q.explanation ? `<p class="text-slate-300 italic text-[11px] leading-relaxed mt-1">${q.explanation}</p>` : ''}
             </div>
         ` : '';
 
+        const card = document.createElement('div');
+        card.className = "bg-slate-900/60 border border-slate-700/80 rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-xl";
+
         card.innerHTML = `
             <div>
-                <div class="flex items-center justify-between text-xs text-indigo-400 font-semibold mb-1">
-                    <span>Pregunta ${questionNumber}</span>
+                <div class="flex items-center justify-between text-xs text-indigo-400 font-semibold mb-2">
+                    <span class="bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/20">Pregunta ${questionNumber}</span>
+                    ${toggleBtnHTML}
                 </div>
                 <h4 class="font-bold text-white text-sm leading-snug">${q.text}</h4>
                 ${correctAnswerHTML}
@@ -378,6 +390,8 @@ function renderBlockCharts() {
             createOrUpdateChart(q);
         }, 50);
     });
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function createOrUpdateChart(question) {
@@ -397,11 +411,14 @@ function createOrUpdateChart(question) {
         chartInstances[question.id].destroy();
     }
 
+    const isRevealed = !!revealedAnswers[question.id];
+
+    // Si la respuesta está revelada por el docente, la barra correcta se pinta de verde esmeralda
     const bgColors = question.options.map(opt => 
-        opt === question.correctAnswer ? 'rgba(16, 185, 129, 0.85)' : 'rgba(99, 102, 241, 0.65)'
+        (isRevealed && opt === question.correctAnswer) ? 'rgba(16, 185, 129, 0.85)' : 'rgba(99, 102, 241, 0.65)'
     );
     const borderColors = question.options.map(opt => 
-        opt === question.correctAnswer ? 'rgba(16, 185, 129, 1)' : 'rgba(99, 102, 241, 1)'
+        (isRevealed && opt === question.correctAnswer) ? 'rgba(16, 185, 129, 1)' : 'rgba(99, 102, 241, 1)'
     );
 
     const ctx = canvas.getContext('2d');
@@ -980,4 +997,10 @@ function updateQuestionsPerBlock(val) {
         renderApp();
         showToast(`Cuestionario configurado a ${newQpb} pregunta(s) por bloque`, "info");
     }
+}
+
+// Función para alternar la visibilidad de la solución en la tarjeta del profesor
+function toggleAnswerVisibility(qId) {
+    revealedAnswers[qId] = !revealedAnswers[qId];
+    renderBlockCharts();
 }
