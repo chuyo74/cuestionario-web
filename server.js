@@ -109,7 +109,23 @@ io.on('connection', (socket) => {
         io.to(code).emit('poll_state_updated', rooms[code]);
     });
 
-    // 3. ACTUALIZAR ESTADO DE ENCUESTA / RESPUESTAS
+    // 3. ELIMINAR SALA EXISTENTE
+    socket.on('delete_room', ({ roomCode }) => {
+        const code = (roomCode || '').toUpperCase().trim();
+
+        if (rooms[code]) {
+            io.to(code).emit('room_error', { 
+                message: `La sala "${code}" ha sido cerrada y eliminada por el profesor.` 
+            });
+            io.in(code).socketsLeave(code);
+            delete rooms[code];
+            console.log(`[Sala Eliminada] ${code}`);
+        } else {
+            socket.emit('room_error', { message: `La sala "${code}" no existe.` });
+        }
+    });
+
+    // 4. ACTUALIZAR ESTADO DE ENCUESTA / RESPUESTAS
     socket.on('update_poll_state', (data) => {
         const room = socket.roomCode;
         if (!room || !rooms[room]) return;
@@ -136,7 +152,7 @@ io.on('connection', (socket) => {
         io.to(room).emit('poll_state_updated', currentRoom);
     });
 
-    // 4. REINICIAR RESPUESTAS EN LA SALA
+    // 5. REINICIAR RESPUESTAS EN LA SALA
     socket.on('reset_poll_data', () => {
         const room = socket.roomCode;
         if (room && rooms[room]) {
@@ -158,18 +174,4 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor Multi-Sala Activo en http://localhost:${PORT}`);
-});
-
-// server.js - Eliminación de sala existente
-socket.on('delete_room', ({ roomCode }) => {
-    const code = (roomCode || '').toUpperCase().trim();
-
-    if (rooms[code]) {
-        io.to(code).emit('room_error', { 
-            message: `La sala "${code}" ha sido cerrada y eliminada por el profesor.` 
-        });
-        io.in(code).socketsLeave(code);
-        delete rooms[code];
-        console.log(`[Sala Eliminada] ${code}`);
-    }
 });
