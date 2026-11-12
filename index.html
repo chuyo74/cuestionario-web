@@ -98,7 +98,23 @@
                             <div class="text-xs uppercase tracking-wider font-semibold text-indigo-400 mb-1">Control de progreso en vivo</div>
                             <h3 class="text-lg font-bold text-white">Liberación por bloques</h3>
                         </div>
-                        <span id="activeBlockBadge" class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full text-xs font-semibold">Bloque 1 Activo</span>
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-xl">
+                                <label for="selectQuestionsPerBlock" class="text-xs text-slate-300 font-medium flex items-center gap-1.5">
+                                    <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-400"></i> Preguntas por bloque:
+                                </label>
+                                <select id="selectQuestionsPerBlock" onchange="updateQuestionsPerBlock(this.value)" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white font-semibold focus:outline-none focus:border-indigo-500 cursor-pointer">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                </select>
+                            </div>
+                            <span id="activeBlockBadge" class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1.5 rounded-xl text-xs font-semibold">
+                                Bloque 1 Activo
+                            </span>
+                        </div>
                     </div>
 
                     <div class="my-4">
