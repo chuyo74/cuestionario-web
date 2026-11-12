@@ -69,14 +69,19 @@
                                     <span id="displayTeacherRoomCode" class="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                                         SALA: NINGUNA
                                     </span>
-                                    <button onclick="handleDeleteRoom()" class="text-slate-400 hover:text-red-400 p-1 rounded-lg hover:bg-red-500/10 transition-colors" title="Eliminar esta sala">
-                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+
+                                    <!-- BOTÓN ELIMINAR SALA -->
+                                    <button onclick="handleDeleteRoom()" class="text-xs text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 px-2.5 py-1 rounded-lg transition-all flex items-center gap-1" title="Eliminar permanentemente esta sala">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                        <span>Eliminar</span>
                                     </button>
+
+                                    <!-- BOTÓN CAMBIAR SALA -->
                                     <button onclick="openRoomSelectionModal()" class="text-[11px] text-slate-300 hover:text-white bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg transition-all hover:bg-slate-700">
                                         Cambiar Sala
                                     </button>
                                 </div>
-                            </div>
+                            </div>  
                             <h2 id="teacherSessionTitle" class="text-xl font-bold text-white truncate">Cargando título...</h2>
                             <p class="text-xs text-slate-400 mt-1" id="totalQuestionsCount">0 preguntas creadas</p>
                         </div>
