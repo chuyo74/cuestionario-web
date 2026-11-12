@@ -159,3 +159,24 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor Multi-Sala Activo en http://localhost:${PORT}`);
 });
+
+// server.js - Eliminación de sala existente
+socket.on('delete_room', ({ roomCode }) => {
+    const code = (roomCode || '').toUpperCase().trim();
+
+    if (rooms[code]) {
+        // 1. Notificar a los estudiantes y participantes conectados
+        io.to(code).emit('room_error', { 
+            message: `La sala "${code}" ha sido cerrada y eliminada por el profesor.` 
+        });
+
+        // 2. Expulsar a todos los sockets conectados de la sala de Socket.io
+        io.in(code).socketsLeave(code);
+
+        // 3. Eliminar la sala del objeto en memoria RAM
+        delete rooms[code];
+        console.log(`[Sala Eliminada] El profesor eliminó la sala: ${code}`);
+    } else {
+        socket.emit('room_error', { message: `La sala "${code}" no existe.` });
+    }
+});

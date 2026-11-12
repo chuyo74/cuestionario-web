@@ -7,6 +7,28 @@ import { socket, saveStateToStorage } from './socket.js';
 import { showToast } from './utils.js';
 import { protectedAction } from './auth.js';
 
+export function handleDeleteRoom() {
+    if (!state.roomCode) {
+        showToast("No hay ninguna sala activa cargada para eliminar.", "warning");
+        return;
+    }
+
+    if (confirm(`¿Estás seguro de eliminar permanentemente la sala "${state.roomCode}"? Todos los estudiantes conectados serán desconectados.`)) {
+        if (socket) {
+            socket.emit('delete_room', { roomCode: state.roomCode });
+        }
+        
+        // Limpiar estado local
+        state.roomCode = '';
+        localStorage.removeItem('classpoll_room_code');
+        
+        showToast("Sala eliminada correctamente.", "info");
+        
+        // Regresar al modal de gestión de salas
+        openRoomSelectionModal();
+    }
+}
+
 export function openRoomSelectionModal() {
     const modal = document.getElementById('roomSelectionModal');
     if (modal) modal.classList.remove('hidden');
