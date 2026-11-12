@@ -101,14 +101,15 @@ export function handleStudentLogin(e, onRender) {
         localStorage.setItem('classpoll_room_code', roomCode);
 
         if (socket) {
+            // El alumno solicita unirse con el rol 'student'
             socket.emit('join_room', {
                 roomCode: state.roomCode,
+                role: 'student',
                 studentData: state.currentStudent
             });
         }
 
         if (onRender) onRender();
-        showToast(`Conectado a la Sala ${roomCode}`, "success");
     }
 }
 

@@ -78,7 +78,7 @@ export function triggerImportJSON() {
 }
 
 export function importSurveyJSON(event, onRender) {
-    const file = event.target.files[0];
+    const file = event.target.files;
     if (!file) return;
 
     const reader = new FileReader();

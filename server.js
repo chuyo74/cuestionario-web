@@ -13,7 +13,6 @@ const io = new Server(server, {
 
 app.use(express.static(path.join(__dirname, './')));
 
-// Encuesta por defecto para salas nuevas
 const DEFAULT_SURVEY = {
     title: "Conceptos Fundamentales de Física y Termodinámica",
     activeBlock: 0,
@@ -38,34 +37,66 @@ const DEFAULT_SURVEY = {
     ]
 };
 
-// Diccionario global de salas activas en RAM: { "ROOM_CODE": { surveyData, submissions, activeStudents } }
+// Almacén global de salas en memoria RAM: { "CODIGO_SALA": { code, surveyData, submissions, activeStudents } }
 const rooms = {};
-
-// Helper para obtener o crear una sala
-function getOrCreateRoom(roomCode) {
-    const code = (roomCode || 'GENERAL').toUpperCase().trim();
-    if (!rooms[code]) {
-        rooms[code] = {
-            surveyData: JSON.parse(JSON.stringify(DEFAULT_SURVEY)),
-            submissions: [],
-            activeStudents: []
-        };
-    }
-    return code;
-}
 
 io.on('connection', (socket) => {
     console.log(`[Socket] Cliente conectado: ${socket.id}`);
 
-    // Unirse a una sala específica
-    socket.on('join_room', ({ roomCode, studentData }) => {
-        const room = getOrCreateRoom(roomCode);
-        socket.roomCode = room;
-        socket.join(room);
+    // 1. CREAR SALA (Exclusivo Docente)
+    socket.on('create_room', ({ roomCode }) => {
+        const code = (roomCode || '').toUpperCase().trim();
 
-        if (studentData && studentData.id) {
+        if (!code) {
+            socket.emit('room_error', { message: 'Debes proporcionar un código de sala válido.' });
+            return;
+        }
+
+        // Validación de duplicados
+        if (rooms[code]) {
+            socket.emit('room_error', { 
+                message: `El nombre de sala "${code}" ya existe. Por favor elige o genera otro nombre.` 
+            });
+            return;
+        }
+
+        // Crear nueva sala
+        rooms[code] = {
+            code: code,
+            surveyData: JSON.parse(JSON.stringify(DEFAULT_SURVEY)),
+            submissions: [],
+            activeStudents: []
+        };
+        console.log(`[Sala Creada] Profesor creó la sala: ${code}`);
+
+        socket.roomCode = code;
+        socket.join(code);
+        socket.emit('init_state', rooms[code]);
+    });
+
+    // 2. UNIRSE A UNA SALA EXISTENTE (Estudiantes o Reconexión Docente)
+    socket.on('join_room', ({ roomCode, role, studentData }) => {
+        const code = (roomCode || '').toUpperCase().trim();
+
+        if (!code) {
+            socket.emit('room_error', { message: 'Debes ingresar el código de la sala.' });
+            return;
+        }
+
+        // Validar que la sala exista
+        if (!rooms[code]) {
+            socket.emit('room_error', { 
+                message: `La sala "${code}" no existe o el profesor aún no la ha creado.` 
+            });
+            return;
+        }
+
+        socket.roomCode = code;
+        socket.join(code);
+
+        if (role === 'student' && studentData && studentData.id) {
             socket.studentData = studentData;
-            const roomStudents = rooms[room].activeStudents;
+            const roomStudents = rooms[code].activeStudents;
             const index = roomStudents.findIndex(s => s.id === studentData.id);
             if (index === -1) {
                 roomStudents.push(studentData);
@@ -74,14 +105,11 @@ io.on('connection', (socket) => {
             }
         }
 
-        // Emitir estado inicial ÚNICAMENTE al cliente que entra a esta sala
-        socket.emit('init_state', rooms[room]);
-
-        // Notificar al resto de la sala sobre la lista de participantes actualizada
-        io.to(room).emit('poll_state_updated', rooms[room]);
+        socket.emit('init_state', rooms[code]);
+        io.to(code).emit('poll_state_updated', rooms[code]);
     });
 
-    // Actualización de estado de la encuesta o respuestas dentro de la sala
+    // 3. ACTUALIZAR ESTADO DE ENCUESTA / RESPUESTAS
     socket.on('update_poll_state', (data) => {
         const room = socket.roomCode;
         if (!room || !rooms[room]) return;
@@ -105,11 +133,10 @@ io.on('connection', (socket) => {
             currentRoom.submissions = data.submissions;
         }
 
-        // Emitir ÚNICAMENTE a los dispositivos conectados a esta sala
         io.to(room).emit('poll_state_updated', currentRoom);
     });
 
-    // Reiniciar respuestas de una sala
+    // 4. REINICIAR RESPUESTAS EN LA SALA
     socket.on('reset_poll_data', () => {
         const room = socket.roomCode;
         if (room && rooms[room]) {

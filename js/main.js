@@ -8,6 +8,7 @@ import { initSocketConnection, saveStateToStorage, pollChannel } from './socket.
 import { showToast, resetData } from './utils.js';
 import { trySwitchToTeacher, protectedAction, verifyPin, closePinModal, switchRole } from './auth.js';
 import { 
+    promptCreateRoomCode,
     renderTeacherDashboard, 
     updateQuestionsPerBlock, 
     changeActiveBlock, 
@@ -23,7 +24,6 @@ import {
 import { renderStudentView, handleStudentLogin, studentLogout, handleStudentSubmitBlock } from './student.js';
 import { exportToCSV, exportSurveyJSON, triggerImportJSON, importSurveyJSON } from './export.js';
 
-// Motor de renderizado global
 function renderApp() {
     if (state.currentRole === 'teacher') {
         renderTeacherDashboard(renderApp);
@@ -35,7 +35,6 @@ function renderApp() {
     }
 }
 
-// Escucha entre pestañas locales del navegador
 pollChannel.onmessage = (event) => {
     if (event.data && event.data.type === 'SYNC') {
         state.survey = enrichSurveyWithMetadata(JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.SURVEY)) || DEFAULT_SURVEY);
@@ -44,13 +43,14 @@ pollChannel.onmessage = (event) => {
     }
 };
 
-// VINCULACIÓN AL OBJETO GLOBAL WINDOW (Para eventos inline en HTML)
+// EXPOSICIÓN AL ÁMBITO GLOBAL WINDOW
 window.trySwitchToTeacher = () => trySwitchToTeacher(renderApp);
 window.switchRole = (role) => switchRole(role, renderApp);
 window.verifyPin = (e) => verifyPin(e, renderApp);
 window.closePinModal = closePinModal;
 window.protectedAction = protectedAction;
 
+window.promptCreateRoomCode = () => promptCreateRoomCode(renderApp);
 window.updateQuestionsPerBlock = (val) => updateQuestionsPerBlock(val, renderApp);
 window.changeActiveBlock = (delta) => changeActiveBlock(delta, renderApp);
 window.toggleAnswerVisibility = toggleAnswerVisibility;
@@ -74,7 +74,6 @@ window.saveSurveyChanges = () => saveSurveyChanges(renderApp);
 
 window.resetData = () => resetData(renderApp);
 
-// Inicialización de la aplicación al cargar el DOM
 window.addEventListener('DOMContentLoaded', () => {
     if (typeof lucide !== 'undefined') lucide.createIcons();
     initSocketConnection(renderApp);

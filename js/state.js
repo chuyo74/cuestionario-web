@@ -16,7 +16,7 @@ export function enrichSurveyWithMetadata(survey) {
 }
 
 export const state = {
-    roomCode: localStorage.getItem('classpoll_room_code') || 'FISICA101',
+    roomCode: localStorage.getItem('classpoll_room_code') || '',
     survey: enrichSurveyWithMetadata(JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.SURVEY)) || DEFAULT_SURVEY),
     submissions: JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.SUBMISSIONS)) || [],
     activeStudents: [],

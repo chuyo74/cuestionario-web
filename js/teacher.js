@@ -3,16 +3,31 @@ Renderiza el panel docente, genera los gráficos de Chart.js y gestiona el edito
 */
 
 import { state, SurveyUtils } from './state.js';
-import { saveStateToStorage } from './socket.js';
+import { socket, saveStateToStorage } from './socket.js';
 import { showToast } from './utils.js';
 import { protectedAction } from './auth.js';
+
+export function promptCreateRoomCode(onRender) {
+    const newCode = prompt("Ingresa el código para la nueva sala que deseas CREAR (ej. FISICA202):", state.roomCode);
+    if (newCode && newCode.trim()) {
+        const cleanCode = newCode.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+        if (cleanCode) {
+            if (socket) {
+                // Emitir solicitud de creación exclusiva
+                socket.emit('create_room', { roomCode: cleanCode });
+            }
+        }
+    }
+}
 
 export function renderTeacherDashboard(onRender) {
     const titleElem = document.getElementById('teacherSessionTitle');
     if (titleElem) titleElem.textContent = state.survey.title;
 
     const roomBadge = document.getElementById('displayTeacherRoomCode');
-    if (roomBadge) roomBadge.textContent = `SALA: ${state.roomCode}`;
+    if (roomBadge) {
+        roomBadge.textContent = state.roomCode ? `SALA: ${state.roomCode}` : 'SALA: NINGUNA';
+    }
 
     const totalCountElem = document.getElementById('totalQuestionsCount');
     if (totalCountElem) totalCountElem.textContent = `${state.survey.questions.length} preguntas en total`;
