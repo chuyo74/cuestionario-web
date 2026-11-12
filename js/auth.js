@@ -73,13 +73,21 @@ export function switchRole(role, onRender) {
     if (role === 'teacher') {
         if (btnTeacher) btnTeacher.className = "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-white bg-indigo-600 shadow-md";
         if (btnStudent) btnStudent.className = "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white";
-        if (teacherView) teacherView.classList.remove('hidden');
         if (studentView) studentView.classList.add('hidden');
+        
+        // Si no hay sala seleccionada, mantenemos oculta la vista docente y abrimos el modal de sala
+        if (!state.roomCode) {
+            if (teacherView) teacherView.classList.add('hidden');
+            openRoomSelectionModal();
+        } else {
+            if (teacherView) teacherView.classList.remove('hidden');
+        }
     } else {
         if (btnStudent) btnStudent.className = "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-white bg-indigo-600 shadow-md";
         if (btnTeacher) btnTeacher.className = "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white";
         if (studentView) studentView.classList.remove('hidden');
         if (teacherView) teacherView.classList.add('hidden');
+        closeRoomSelectionModal();
     }
     if (onRender) onRender();
 }

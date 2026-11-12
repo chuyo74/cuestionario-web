@@ -45,6 +45,14 @@ export function initSocketConnection(onRender) {
                     if (data.surveyData) state.survey = enrichSurveyWithMetadata(data.surveyData);
                     if (data.submissions) state.submissions = data.submissions;
                     if (data.activeStudents) state.activeStudents = data.activeStudents;
+                    
+                    // Al recibir la confirmación de la sala, cerramos el modal y mostramos la vista docente
+                    closeRoomSelectionModal();
+                    if (state.currentRole === 'teacher') {
+                        const teacherView = document.getElementById('teacherView');
+                        if (teacherView) teacherView.classList.remove('hidden');
+                    }
+
                     if (onRender) onRender();
                 }
             });

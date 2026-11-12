@@ -7,6 +7,47 @@ import { socket, saveStateToStorage } from './socket.js';
 import { showToast } from './utils.js';
 import { protectedAction } from './auth.js';
 
+export function openRoomSelectionModal() {
+    const modal = document.getElementById('roomSelectionModal');
+    if (modal) modal.classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+export function closeRoomSelectionModal() {
+    const modal = document.getElementById('roomSelectionModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+export function handleCreateNewRoom() {
+    const input = document.getElementById('inputNewRoomCode');
+    if (!input || !input.value.trim()) {
+        showToast("Ingresa un código para la nueva sala.", "warning");
+        return;
+    }
+
+    const code = input.value.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    if (code && socket) {
+        socket.emit('create_room', { roomCode: code });
+    }
+}
+
+export function handleManageExistingRoom() {
+    const input = document.getElementById('inputExistingRoomCode');
+    if (!input || !input.value.trim()) {
+        showToast("Ingresa el código de la sala que deseas gestionar.", "warning");
+        return;
+    }
+
+    const code = input.value.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    if (code && socket) {
+        socket.emit('join_room', {
+            roomCode: code,
+            role: 'teacher',
+            studentData: null
+        });
+    }
+}
+
 export function promptCreateRoomCode(onRender) {
     const newCode = prompt("Ingresa el código para la nueva sala que deseas CREAR (ej. FISICA202):", state.roomCode);
     if (newCode && newCode.trim()) {

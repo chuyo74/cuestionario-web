@@ -8,7 +8,10 @@ import { initSocketConnection, saveStateToStorage, pollChannel } from './socket.
 import { showToast, resetData } from './utils.js';
 import { trySwitchToTeacher, protectedAction, verifyPin, closePinModal, switchRole } from './auth.js';
 import { 
-    promptCreateRoomCode,
+    openRoomSelectionModal,
+    closeRoomSelectionModal,
+    handleCreateNewRoom,
+    handleManageExistingRoom,
     renderTeacherDashboard, 
     updateQuestionsPerBlock, 
     changeActiveBlock, 
@@ -24,6 +27,7 @@ import {
 import { renderStudentView, handleStudentLogin, studentLogout, handleStudentSubmitBlock } from './student.js';
 import { exportToCSV, exportSurveyJSON, triggerImportJSON, importSurveyJSON } from './export.js';
 
+// Motor principal de renderizado
 function renderApp() {
     if (state.currentRole === 'teacher') {
         renderTeacherDashboard(renderApp);
@@ -35,6 +39,7 @@ function renderApp() {
     }
 }
 
+// Sincronización entre pestañas locales
 pollChannel.onmessage = (event) => {
     if (event.data && event.data.type === 'SYNC') {
         state.survey = enrichSurveyWithMetadata(JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.SURVEY)) || DEFAULT_SURVEY);
@@ -43,27 +48,40 @@ pollChannel.onmessage = (event) => {
     }
 };
 
-// EXPOSICIÓN AL ÁMBITO GLOBAL WINDOW
+// =========================================================
+// ASIGNACIÓN AL OBJETO GLOBAL WINDOW (Eventos inline HTML)
+// =========================================================
+
+// Roles y Autenticación
 window.trySwitchToTeacher = () => trySwitchToTeacher(renderApp);
 window.switchRole = (role) => switchRole(role, renderApp);
 window.verifyPin = (e) => verifyPin(e, renderApp);
 window.closePinModal = closePinModal;
 window.protectedAction = protectedAction;
 
-window.promptCreateRoomCode = () => promptCreateRoomCode(renderApp);
+// Gestión de Salas (Docente)
+window.openRoomSelectionModal = openRoomSelectionModal;
+window.closeRoomSelectionModal = closeRoomSelectionModal;
+window.handleCreateNewRoom = handleCreateNewRoom;
+window.handleManageExistingRoom = handleManageExistingRoom;
+
+// Controles del Dashboard Docente
 window.updateQuestionsPerBlock = (val) => updateQuestionsPerBlock(val, renderApp);
 window.changeActiveBlock = (delta) => changeActiveBlock(delta, renderApp);
 window.toggleAnswerVisibility = toggleAnswerVisibility;
 
+// Formulario de Estudiante
 window.handleStudentLogin = (e) => handleStudentLogin(e, renderApp);
 window.studentLogout = () => studentLogout(renderApp);
 window.handleStudentSubmitBlock = (e) => handleStudentSubmitBlock(e, renderApp);
 
+// Exportación e Importación
 window.exportToCSV = exportToCSV;
 window.exportSurveyJSON = exportSurveyJSON;
 window.triggerImportJSON = triggerImportJSON;
 window.importSurveyJSON = (e) => importSurveyJSON(e, renderApp);
 
+// Editor de Encuesta
 window.openEditSurveyModal = openEditSurveyModal;
 window.closeEditSurveyModal = closeEditSurveyModal;
 window.addOptionField = addOptionField;
@@ -72,8 +90,12 @@ window.addNewQuestionField = addNewQuestionField;
 window.removeQuestionField = removeQuestionField;
 window.saveSurveyChanges = () => saveSurveyChanges(renderApp);
 
+// Reiniciar Datos
 window.resetData = () => resetData(renderApp);
 
+// =========================================================
+// INICIALIZACIÓN
+// =========================================================
 window.addEventListener('DOMContentLoaded', () => {
     if (typeof lucide !== 'undefined') lucide.createIcons();
     initSocketConnection(renderApp);
