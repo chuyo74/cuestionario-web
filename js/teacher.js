@@ -11,6 +11,9 @@ export function renderTeacherDashboard(onRender) {
     const titleElem = document.getElementById('teacherSessionTitle');
     if (titleElem) titleElem.textContent = state.survey.title;
 
+    const roomBadge = document.getElementById('displayTeacherRoomCode');
+    if (roomBadge) roomBadge.textContent = `SALA: ${state.roomCode}`;
+
     const totalCountElem = document.getElementById('totalQuestionsCount');
     if (totalCountElem) totalCountElem.textContent = `${state.survey.questions.length} preguntas en total`;
 

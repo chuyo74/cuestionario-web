@@ -2,7 +2,7 @@
 Gestiona la comunicación en tiempo real con Socket.io y la sincronización con localStorage y BroadcastChannel
  */
 
-import { CONFIG, DEFAULT_SURVEY } from './config.js';
+import { CONFIG } from './config.js';
 import { state, enrichSurveyWithMetadata } from './state.js';
 
 export let socket = null;
@@ -21,18 +21,21 @@ export function initSocketConnection(onRender) {
             socket.on('connect', () => {
                 const badge = document.getElementById('sessionStatusBadge');
                 if (badge) {
-                    badge.textContent = "Conectado en Vivo";
+                    badge.textContent = `En Vivo (${state.roomCode})`;
                     badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
                 }
-                if (state.currentStudent && state.currentStudent.id) {
-                    socket.emit('student_joined', state.currentStudent);
-                }
+                
+                // Unirse a la sala correspondiente
+                socket.emit('join_room', {
+                    roomCode: state.roomCode,
+                    studentData: state.currentStudent
+                });
             });
 
             socket.on('init_state', (data) => {
                 if (data) {
                     if (data.surveyData) state.survey = enrichSurveyWithMetadata(data.surveyData);
-                    if (data.submissions && data.submissions.length > 0) state.submissions = data.submissions;
+                    if (data.submissions) state.submissions = data.submissions;
                     if (data.activeStudents) state.activeStudents = data.activeStudents;
                     if (onRender) onRender();
                 }
@@ -56,7 +59,8 @@ export function saveStateToStorage(isTeacherAction = false) {
     localStorage.setItem(CONFIG.STORAGE_KEYS.SURVEY, JSON.stringify(state.survey));
     localStorage.setItem(CONFIG.STORAGE_KEYS.SUBMISSIONS, JSON.stringify(state.submissions));
     localStorage.setItem(CONFIG.STORAGE_KEYS.STUDENT, JSON.stringify(state.currentStudent));
-    
+    localStorage.setItem('classpoll_room_code', state.roomCode);
+
     pollChannel.postMessage({ type: 'SYNC' });
 
     if (socket) {

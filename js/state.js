@@ -8,18 +8,15 @@ export function enrichSurveyWithMetadata(survey) {
     survey.questions.forEach((q, idx) => {
         const defaultQ = DEFAULT_SURVEY.questions[idx];
         if (defaultQ) {
-            if (!q.correctAnswer && defaultQ.correctAnswer) {
-                q.correctAnswer = defaultQ.correctAnswer;
-            }
-            if (!q.explanation && defaultQ.explanation) {
-                q.explanation = defaultQ.explanation;
-            }
+            if (!q.correctAnswer && defaultQ.correctAnswer) q.correctAnswer = defaultQ.correctAnswer;
+            if (!q.explanation && defaultQ.explanation) q.explanation = defaultQ.explanation;
         }
     });
     return survey;
 }
 
 export const state = {
+    roomCode: localStorage.getItem('classpoll_room_code') || 'FISICA101',
     survey: enrichSurveyWithMetadata(JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.SURVEY)) || DEFAULT_SURVEY),
     submissions: JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.SUBMISSIONS)) || [],
     activeStudents: [],
@@ -32,12 +29,7 @@ export const state = {
 
 export const SurveyUtils = {
     getQuestionsPerBlock: () => state.survey.questionsPerBlock || CONFIG.DEFAULT_QUESTIONS_PER_BLOCK,
-    
-    getTotalBlocks: () => {
-        const qpb = SurveyUtils.getQuestionsPerBlock();
-        return Math.ceil(state.survey.questions.length / qpb) || 1;
-    },
-
+    getTotalBlocks: () => Math.ceil(state.survey.questions.length / SurveyUtils.getQuestionsPerBlock()) || 1,
     getCurrentBlockQuestions: () => {
         const qpb = SurveyUtils.getQuestionsPerBlock();
         const start = state.survey.activeBlock * qpb;

@@ -6,95 +6,129 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-    },
-    // Habilitar transportes con fallback para garantizar compatibilidad móvil en Render
+    cors: { origin: "*", methods: ["GET", "POST"] },
     transports: ['polling', 'websocket'],
     allowEIO3: true
 });
 
-// Servir los archivos estáticos de la aplicación (index.html, styles.css, app.js)
 app.use(express.static(path.join(__dirname, './')));
 
-// Estado de la encuesta guardado en memoria del servidor
-let surveyState = {
-    surveyData: null,
-    submissions: [],
-    activeStudents: []
+// Encuesta por defecto para salas nuevas
+const DEFAULT_SURVEY = {
+    title: "Conceptos Fundamentales de Física y Termodinámica",
+    activeBlock: 0,
+    questionsPerBlock: 2,
+    questions: [
+        {
+            id: "q1",
+            text: "Se abre una válvula permitiendo que un gas ideal se expanda libremente hacia un recipiente al vacío adyacente que está aislado térmicamente. Durante esta expansión libre, ¿qué ocurre con la temperatura del gas?",
+            type: "multiple",
+            options: ["1) Aumenta.", "2) Disminuye.", "3) Permanece igual."],
+            correctAnswer: "3) Permanece igual.",
+            explanation: "Al expandirse hacia el vacío no hay fuerza opositora (W = 0). Al estar aislado térmicamente (Q = 0). Por la Primera Ley (ΔU = Q - W = 0). En un gas ideal, U depende únicamente de T, por lo que ΔT = 0."
+        },
+        {
+            id: "q2",
+            text: "Nivel de certeza de su respuesta:",
+            type: "multiple",
+            options: ["Total incertidumbre", "Baja certeza", "Certeza media", "Certeza alta", "Total certeza"],
+            correctAnswer: null,
+            explanation: null
+        }
+    ]
 };
 
+// Diccionario global de salas activas en RAM: { "ROOM_CODE": { surveyData, submissions, activeStudents } }
+const rooms = {};
+
+// Helper para obtener o crear una sala
+function getOrCreateRoom(roomCode) {
+    const code = (roomCode || 'GENERAL').toUpperCase().trim();
+    if (!rooms[code]) {
+        rooms[code] = {
+            surveyData: JSON.parse(JSON.stringify(DEFAULT_SURVEY)),
+            submissions: [],
+            activeStudents: []
+        };
+    }
+    return code;
+}
+
 io.on('connection', (socket) => {
-    console.log(`[Socket] Nuevo cliente conectado: ${socket.id}`);
+    console.log(`[Socket] Cliente conectado: ${socket.id}`);
 
-    // Enviar el estado actual apenas se conecta un alumno o profesor
-    socket.emit('init_state', surveyState);
+    // Unirse a una sala específica
+    socket.on('join_room', ({ roomCode, studentData }) => {
+        const room = getOrCreateRoom(roomCode);
+        socket.roomCode = room;
+        socket.join(room);
 
-    // Registrar inicio de sesión del estudiante y sincronizar presencia
-    socket.on('student_joined', (studentData) => {
         if (studentData && studentData.id) {
             socket.studentData = studentData;
-            // Evitar duplicados por ID
-            const index = surveyState.activeStudents.findIndex(s => s.id === studentData.id);
+            const roomStudents = rooms[room].activeStudents;
+            const index = roomStudents.findIndex(s => s.id === studentData.id);
             if (index === -1) {
-                surveyState.activeStudents.push(studentData);
+                roomStudents.push(studentData);
             } else {
-                surveyState.activeStudents[index] = studentData;
+                roomStudents[index] = studentData;
             }
-            console.log(`[Socket] Estudiante activo: ${studentData.name} (${studentData.id})`);
         }
-        // Emitir a TODOS los clientes conectados el estado de presencia actualizado
-        io.emit('poll_state_updated', surveyState);
+
+        // Emitir estado inicial ÚNICAMENTE al cliente que entra a esta sala
+        socket.emit('init_state', rooms[room]);
+
+        // Notificar al resto de la sala sobre la lista de participantes actualizada
+        io.to(room).emit('poll_state_updated', rooms[room]);
     });
 
-    // Cuando el profesor cambia de bloque o un alumno responde
+    // Actualización de estado de la encuesta o respuestas dentro de la sala
     socket.on('update_poll_state', (data) => {
-        // Si viene información de encuesta, fusionar sin perder respuestas correctas
+        const room = socket.roomCode;
+        if (!room || !rooms[room]) return;
+
+        const currentRoom = rooms[room];
+
         if (data.surveyData) {
-            if (surveyState.surveyData && surveyState.surveyData.questions) {
+            if (currentRoom.surveyData && currentRoom.surveyData.questions) {
                 data.surveyData.questions.forEach((q, idx) => {
-                    const existingQ = surveyState.surveyData.questions[idx];
+                    const existingQ = currentRoom.surveyData.questions[idx];
                     if (existingQ) {
                         if (!q.correctAnswer && existingQ.correctAnswer) q.correctAnswer = existingQ.correctAnswer;
                         if (!q.explanation && existingQ.explanation) q.explanation = existingQ.explanation;
                     }
                 });
             }
-            surveyState.surveyData = data.surveyData;
+            currentRoom.surveyData = data.surveyData;
         }
 
-        // Actualizar lista de respuestas si vienen en el payload
         if (data.submissions) {
-            surveyState.submissions = data.submissions;
+            currentRoom.submissions = data.submissions;
         }
-        
-        // Transmitir inmediatamente a todos los clientes
-        io.emit('poll_state_updated', surveyState);
+
+        // Emitir ÚNICAMENTE a los dispositivos conectados a esta sala
+        io.to(room).emit('poll_state_updated', currentRoom);
     });
 
-    // Reiniciar respuestas (acción protegida docente)
+    // Reiniciar respuestas de una sala
     socket.on('reset_poll_data', () => {
-        surveyState.submissions = [];
-        if (surveyState.surveyData) surveyState.surveyData.activeBlock = 0;
-        io.emit('poll_state_updated', surveyState);
+        const room = socket.roomCode;
+        if (room && rooms[room]) {
+            rooms[room].submissions = [];
+            if (rooms[room].surveyData) rooms[room].surveyData.activeBlock = 0;
+            io.to(room).emit('poll_state_updated', rooms[room]);
+        }
     });
 
     socket.on('disconnect', () => {
-        console.log(`[Socket] Cliente desconectado: ${socket.id}`);
-        if (socket.studentData) {
-            surveyState.activeStudents = surveyState.activeStudents.filter(s => s.id !== socket.studentData.id);
-            io.emit('poll_state_updated', surveyState);
+        const room = socket.roomCode;
+        if (room && rooms[room] && socket.studentData) {
+            rooms[room].activeStudents = rooms[room].activeStudents.filter(s => s.id !== socket.studentData.id);
+            io.to(room).emit('poll_state_updated', rooms[room]);
         }
     });
 });
 
 const PORT = process.env.PORT || 3000;
-// Escuchar explícitamente en '0.0.0.0' para permitir conexiones desde celulares en la red local
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`====================================================`);
-    console.log(` Servidor de Encuestas Multiusuario Activo`);
-    console.log(` Puerto: http://localhost:${PORT}`);
-    console.log(` Escuchando en todas las interfaces de red (0.0.0.0)`);
-    console.log(`====================================================`);
+    console.log(`Servidor Multi-Sala Activo en http://localhost:${PORT}`);
 });
