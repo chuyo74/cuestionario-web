@@ -4,7 +4,7 @@ import { saveStateToStorage } from './socket.js';
 import { showToast } from './utils.js';
 
 export function exportToCSV() {
-    if (state.submissions.length === 0) {
+    if (!state.submissions || state.submissions.length === 0) {
         showToast("No hay datos cargados para exportar", "warning");
         return;
     }
@@ -71,37 +71,53 @@ export function exportSurveyJSON() {
 
 export function triggerImportJSON() {
     const fileInput = document.getElementById('importJsonInput');
-    if (fileInput) fileInput.click();
+    if (fileInput) {
+        fileInput.click();
+    } else {
+        showToast("No se encontró el elemento de carga en el DOM.", "warning");
+    }
 }
 
 export function importSurveyJSON(event, onRender) {
-    // 🟢 CORRECCIÓN CLAVE: Seleccionar el primer elemento del FileList (files)
-    const file = (event.target.files && event.target.files.length > 0) ? event.target.files : null;
-    if (!file) return;
+    // 🟢 CORRECCIÓN VITAL: Extraer el primer archivo [0] del objeto FileList
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0]; // Obtenemos el objeto File (Blob) válido
 
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
             const parsedData = JSON.parse(e.target.result);
             if (parsedData && Array.isArray(parsedData.questions) && parsedData.questions.length >= 2) {
+                // Actualizar la encuesta en el estado global
                 state.survey = parsedData;
                 if (typeof state.survey.activeBlock !== 'number') {
                     state.survey.activeBlock = 0;
                 }
                 
+                // Guardar en almacenamiento y emitir actualización por WebSockets al backend
                 saveStateToStorage(true);
+                
+                // Re-renderizar la vista
                 if (typeof onRender === 'function') {
                     onRender();
                 }
+                
                 showToast("Encuesta cargada exitosamente y publicada a los estudiantes", "success");
             } else {
                 showToast("El archivo JSON debe contener al menos 2 preguntas válidas.", "warning");
             }
         } catch (err) {
-            console.error("Error al procesar JSON:", err);
-            showToast("Error al procesar el archivo JSON. Verifique el formato.", "warning");
+            console.error("Error al parsear el archivo JSON:", err);
+            showToast("Error al procesar el archivo JSON. Verifique la sintaxis.", "warning");
         }
     };
+
+    reader.onerror = function() {
+        showToast("Error al leer el archivo del disco.", "warning");
+    };
+
     reader.readAsText(file);
-    event.target.value = '';
+    event.target.value = ''; // Limpiar el input para permitir recargar el mismo archivo si se desea
 }

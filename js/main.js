@@ -32,6 +32,14 @@ window.handleDeleteRoom = handleDeleteRoom;
 
 // Motor principal de renderizado
 function renderApp() {
+    const btnReset = document.getElementById('btnResetData');
+    if (btnReset) {
+        if (state.currentRole === 'teacher') {
+            btnReset.classList.remove('hidden');
+        } else {
+            btnReset.classList.add('hidden');
+        }
+    }
     if (state.currentRole === 'teacher') {
         renderTeacherDashboard(renderApp);
     } else {

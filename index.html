@@ -46,7 +46,7 @@
                         <i data-lucide="user-check" class="w-4 h-4"></i> Tomar encuesta
                     </button>
                 </div>
-                <button onclick="protectedAction(() => resetData())" class="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors border border-transparent hover:border-red-500/20" title="Reiniciar respuestas de la sala">
+                <button id="btnResetData" onclick="protectedAction(() => resetData())" class="hidden p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors border border-transparent hover:border-red-500/20" title="Reiniciar respuestas de la sala">
                     <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
                 </button>
             </div>
@@ -289,7 +289,7 @@
                 <i data-lucide="lock" class="w-6 h-6"></i>
             </div>
             <div>
-                <h3 class="text-lg font-bold text-white">Acceso docente</h3>
+                <h3 class="text-lg font-bold text-white">Acceso restringido</h3>
                 <p class="text-xs text-slate-400 mt-1">Ingrese el PIN de seguridad para gestionar las salas.</p>
             </div>
             <form onsubmit="verifyPin(event)" class="space-y-4">
