@@ -88,7 +88,7 @@ io.on('connection', (socket) => {
             activeStudents: [],
             lastActivity: Date.now() // Registrar hora de creación
         };
-        console.log(`[Sala Creada] Profesor creó la sala: ${code}`);
+        console.log(`[Sala Creada] Se creó la sala: ${code}`);
 
         socket.roomCode = code;
         socket.join(code);
@@ -106,7 +106,7 @@ io.on('connection', (socket) => {
 
         if (!rooms[code]) {
             socket.emit('room_error', { 
-                message: `La sala "${code}" no existe o el profesor aún no la ha creado.` 
+                message: `La sala "${code}" no existe.` 
             });
             return;
         }
@@ -138,7 +138,7 @@ io.on('connection', (socket) => {
 
         if (rooms[code]) {
             io.to(code).emit('room_error', { 
-                message: `La sala "${code}" ha sido cerrada y eliminada por el profesor.` 
+                message: `La sala "${code}" ha sido cerrada y eliminada.` 
             });
             io.in(code).socketsLeave(code);
             delete rooms[code];
