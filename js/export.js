@@ -1,7 +1,4 @@
-/*
-Genera el reporte codificado en CSV y permite exportar/importar la plantilla en JSON.
-*/
-
+/* Genera el reporte codificado en CSV y permite exportar/importar la plantilla en JSON. */
 import { state } from './state.js';
 import { saveStateToStorage } from './socket.js';
 import { showToast } from './utils.js';
@@ -78,7 +75,8 @@ export function triggerImportJSON() {
 }
 
 export function importSurveyJSON(event, onRender) {
-    const file = event.target.files;
+    // 🟢 CORRECCIÓN CLAVE: Seleccionar el primer elemento del FileList (files)
+    const file = (event.target.files && event.target.files.length > 0) ? event.target.files : null;
     if (!file) return;
 
     const reader = new FileReader();
@@ -92,12 +90,15 @@ export function importSurveyJSON(event, onRender) {
                 }
                 
                 saveStateToStorage(true);
-                if (onRender) onRender();
+                if (typeof onRender === 'function') {
+                    onRender();
+                }
                 showToast("Encuesta cargada exitosamente y publicada a los estudiantes", "success");
             } else {
                 showToast("El archivo JSON debe contener al menos 2 preguntas válidas.", "warning");
             }
         } catch (err) {
+            console.error("Error al procesar JSON:", err);
             showToast("Error al procesar el archivo JSON. Verifique el formato.", "warning");
         }
     };
