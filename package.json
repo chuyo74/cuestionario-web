@@ -1,7 +1,7 @@
 {
-"name": "classpoll-multilive",
+"name": "Voto en vivo",
 "version": "1.0.0",
-"description": "Sistema de Encuestas en Vivo Multiusuario para Aulas de Clase",
+"description": "Sistema de encuestas en vivo",
 "main": "server.js",
 "scripts": {
 "start": "node server.js"

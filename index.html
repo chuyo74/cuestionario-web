@@ -40,10 +40,10 @@
             <div class="flex items-center space-x-3">
                 <div class="bg-slate-900/80 p-1 rounded-xl border border-slate-700 flex items-center text-xs font-medium">
                     <button id="btnRoleTeacher" onclick="trySwitchToTeacher()" class="px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white">
-                        <i data-lucide="presentation" class="w-4 h-4"></i> Vista profesor
+                        <i data-lucide="presentation" class="w-4 h-4"></i> Crear encuesta
                     </button>
                     <button id="btnRoleStudent" onclick="switchRole('student')" class="px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-white bg-indigo-600 shadow-md">
-                        <i data-lucide="user-check" class="w-4 h-4"></i> Vista estudiante
+                        <i data-lucide="user-check" class="w-4 h-4"></i> Tomar encuesta
                     </button>
                 </div>
                 <button onclick="protectedAction(() => resetData())" class="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors border border-transparent hover:border-red-500/20" title="Reiniciar respuestas de la sala">
@@ -237,7 +237,7 @@
                     </div>
 
                     <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2 text-sm">
-                        Unirse a la Clase <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        Unirse a la clase <i data-lucide="arrow-right" class="w-4 h-4"></i>
                     </button>
                 </form>
             </div>

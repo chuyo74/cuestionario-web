@@ -13,7 +13,7 @@ export const CONFIG = Object.freeze({
 });
 
 export const DEFAULT_SURVEY = {
-    title: "Conceptos Fundamentales de Física y Termodinámica",
+    title: "Nombre de la encuesta",
     activeBlock: 0,
     questionsPerBlock: CONFIG.DEFAULT_QUESTIONS_PER_BLOCK,
     questions: [
