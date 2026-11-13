@@ -27,8 +27,10 @@ import {
 import { renderStudentView, handleStudentLogin, studentLogout, handleStudentSubmitBlock } from './student.js';
 import { exportToCSV, exportSurveyJSON, triggerImportJSON, importSurveyJSON } from './export.js';
 import { handleDeleteRoom } from './teacher.js';
+import { toggleStartSurvey } from './teacher.js';
 
 window.handleDeleteRoom = handleDeleteRoom;
+window.toggleStartSurvey = () => toggleStartSurvey(renderApp);
 
 // Motor principal de renderizado
 function renderApp() {

@@ -102,10 +102,6 @@ export function renderTeacherDashboard(onRender) {
     const totalCountElem = document.getElementById('totalQuestionsCount');
     if (totalCountElem) totalCountElem.textContent = `${state.survey.questions.length} preguntas en total`;
 
-    const activeCount = state.activeStudents ? state.activeStudents.length : 0;
-    const teacherSubElem = document.getElementById('teacherTotalSubmissions');
-    if (teacherSubElem) teacherSubElem.textContent = `${activeCount} en línea (${state.submissions.length} con respuestas)`;
-
     const qpb = SurveyUtils.getQuestionsPerBlock();
     const totalBlocks = SurveyUtils.getTotalBlocks();
     const currentBlockIdx = state.survey.activeBlock;
@@ -127,6 +123,18 @@ export function renderTeacherDashboard(onRender) {
     const btnNext = document.getElementById('btnNextBlock');
     if (btnPrev) btnPrev.disabled = currentBlockIdx === 0;
     if (btnNext) btnNext.disabled = currentBlockIdx >= totalBlocks - 1;
+
+    // Actualizar apariencia del botón según el estado de la encuesta
+    const btnStart = document.getElementById('btnToggleStartSurvey');
+    if (btnStart) {
+        if (state.survey.isStarted) {
+            btnStart.innerHTML = `<i data-lucide="pause" class="w-4 h-4"></i> Pausar Encuesta`;
+            btnStart.className = "px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs flex items-center gap-1.5 rounded-xl shadow-lg shadow-amber-600/30 transition-all";
+        } else {
+            btnStart.innerHTML = `<i data-lucide="play" class="w-4 h-4"></i> Iniciar Encuesta`;
+            btnStart.className = "px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-1.5 rounded-xl shadow-lg shadow-emerald-600/30 transition-all";
+        }
+    }
 
     renderBlockCharts();
     renderParticipantsTable();
@@ -575,4 +583,21 @@ export function importSurveyJSON(event, onRender) {
     };
     reader.readAsText(file);
     event.target.value = '';
+}
+
+export function toggleStartSurvey(onRender) {
+    if (typeof state.survey.isStarted === 'undefined') {
+        state.survey.isStarted = false;
+    }
+
+    state.survey.isStarted = !state.survey.isStarted;
+    saveStateToStorage(true);
+
+    if (onRender) onRender();
+
+    if (state.survey.isStarted) {
+        showToast("Encuesta iniciada. Las preguntas están disponibles para los alumnos.", "success");
+    } else {
+        showToast("Encuesta pausada. Los alumnos han vuelto a la sala de espera.", "info");
+    }
 }

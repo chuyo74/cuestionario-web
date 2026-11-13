@@ -9,12 +9,14 @@ import { showToast } from './utils.js';
 
 export function renderStudentView() {
     const loginCard = document.getElementById('studentLoginCard');
+    const welcomeScreen = document.getElementById('studentWelcomeScreen');
     const formCard = document.getElementById('studentFormCard');
     const completedScreen = document.getElementById('studentCompletedScreen');
 
     // 1. Si no hay estudiante logueado, mostrar la tarjeta de ingreso
     if (!state.currentStudent) {
         if (loginCard) loginCard.classList.remove('hidden');
+        if (welcomeScreen) welcomeScreen.classList.add('hidden');
         if (formCard) formCard.classList.add('hidden');
         if (completedScreen) completedScreen.classList.add('hidden');
         return;
@@ -28,6 +30,23 @@ export function renderStudentView() {
     const answeredCount = (studentSub && studentSub.answers) ? Object.keys(studentSub.answers).length : 0;
 
     const isFullyCompleted = totalQuestions > 0 && answeredCount >= totalQuestions;
+
+    // Actualizar nombre en la pantalla de bienvenida
+    const welcomeName = document.getElementById('studentWelcomeName');
+    if (welcomeName) welcomeName.textContent = state.currentStudent.name;
+
+    // 2. Si el profesor AÚN NO ha iniciado la encuesta -> Mostrar Sala de Espera
+    const isSurveyStarted = !!state.survey.isStarted;
+    if (!isSurveyStarted) {
+        if (welcomeScreen) welcomeScreen.classList.remove('hidden');
+        if (formCard) formCard.classList.add('hidden');
+        if (completedScreen) completedScreen.classList.add('hidden');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    // Si ya inició, ocultar la sala de espera
+    if (welcomeScreen) welcomeScreen.classList.add('hidden');
 
     // 3. Mostrar pantalla final si completó el cuestionario
     if (isFullyCompleted) {
