@@ -5,6 +5,7 @@ Gestiona la comunicación en tiempo real con Socket.io y la sincronización con 
 import { CONFIG } from './config.js';
 import { state, enrichSurveyWithMetadata } from './state.js';
 import { showToast } from './utils.js';
+import { openRoomSelectionModal } from './teacher.js';
 
 export let socket = null;
 export const pollChannel = new BroadcastChannel(CONFIG.SYNC_CHANNEL);
@@ -68,11 +69,22 @@ export function initSocketConnection(onRender) {
 
             socket.on('room_error', (data) => {
                 showToast(data.message, "warning");
+
+                // Limpiar el código de sala inexistente del estado y del almacenamiento local
+                state.roomCode = '';
+                localStorage.removeItem('classpoll_room_code');
+
                 if (state.currentRole === 'student') {
                     state.currentStudent = null;
                     localStorage.removeItem(CONFIG.STORAGE_KEYS.STUDENT);
-                    if (onRender) onRender();
+                } else if (state.currentRole === 'teacher') {
+                    // Ocultar el dashboard del profesor y abrir el modal de gestión de salas
+                    const teacherView = document.getElementById('teacherView');
+                    if (teacherView) teacherView.classList.add('hidden');
+                    openRoomSelectionModal();
                 }
+
+                if (onRender) onRender();
             });
         }
     } catch (e) {

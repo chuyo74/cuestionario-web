@@ -107,7 +107,7 @@ export function renderTeacherDashboard(onRender) {
     if (selectElem) selectElem.value = qpb;
 
     const badgeElem = document.getElementById('activeBlockBadge');
-    if (badgeElem) badgeElem.textContent = `Bloque ${currentBlockIdx + 1} Activo`;
+    if (badgeElem) badgeElem.textContent = `Bloque ${currentBlockIdx + 1} activo`;
 
     const progressTextElem = document.getElementById('blockProgressText');
     if (progressTextElem) progressTextElem.textContent = `Bloque ${currentBlockIdx + 1} de ${totalBlocks}`;
