@@ -14,7 +14,7 @@ const io = new Server(server, {
 app.use(express.static(path.join(__dirname, './')));
 
 const DEFAULT_SURVEY = {
-    title: "Conceptos Fundamentales de Física y Termodinámica",
+    title: "Nombre de la encuesta",
     activeBlock: 0,
     questionsPerBlock: 2,
     questions: [
@@ -70,13 +70,13 @@ io.on('connection', (socket) => {
         const code = (roomCode || '').toUpperCase().trim();
 
         if (!code) {
-            socket.emit('room_error', { message: 'Debes proporcionar un código de sala válido.' });
+            socket.emit('room_error', { message: 'Proporcione un código de sala válido.' });
             return;
         }
 
         if (rooms[code]) {
             socket.emit('room_error', { 
-                message: `El nombre de sala "${code}" ya existe. Por favor elige o genera otro nombre.` 
+                message: `El nombre de sala "${code}" ya existe. Por favor elija otro nombre.` 
             });
             return;
         }
@@ -100,7 +100,7 @@ io.on('connection', (socket) => {
         const code = (roomCode || '').toUpperCase().trim();
 
         if (!code) {
-            socket.emit('room_error', { message: 'Debes ingresar el código de la sala.' });
+            socket.emit('room_error', { message: 'Ingrese el código de la sala.' });
             return;
         }
 
