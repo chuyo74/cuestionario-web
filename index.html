@@ -82,7 +82,7 @@
                                     </button>
                                 </div>
                             </div>  
-                            <h2 id="teacherSessionTitle" class="text-xl font-bold text-white truncate">Cargando título...</h2>
+                            <h2 id="teacherSessionTitle" class="text-xl font-bold text-white break-words leading-snug">Cargando título...</h2>
                             <p class="text-xs text-slate-400 mt-1" id="totalQuestionsCount">0 preguntas creadas</p>
                         </div>
                         <div class="mt-4 flex items-center justify-between text-xs border-t border-slate-700/60 pt-3">
@@ -127,34 +127,39 @@
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-between gap-3 flex-wrap">
-                        <button id="btnPrevBlock" onclick="changeActiveBlock(-1)" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-medium text-xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
-                            <i data-lucide="chevron-left" class="w-4 h-4"></i> Bloque anterior
-                        </button>
-                        
-                        <div class="flex gap-2 flex-wrap">
+                    <!-- CONTENEDOR REORGANIZADO DE BOTONES -->
+                    <div class="space-y-3 pt-2">
+                        <!-- FILA 1: Botones de Acción -->
+                        <div class="flex items-center justify-start gap-2 flex-wrap">
                             <button onclick="openEditSurveyModal()" class="px-3.5 py-2 bg-slate-700/70 hover:bg-slate-700 text-slate-200 rounded-xl font-medium text-xs flex items-center gap-1.5 border border-slate-600 transition-all">
-                                <i data-lucide="edit-3" class="w-4 h-4"></i> Editar encuesta
+                                <i data-lucide="edit-3" class="w-4 h-4"></i> Editar
                             </button>
                             
                             <button onclick="exportSurveyJSON()" class="px-3.5 py-2 bg-slate-700/70 hover:bg-slate-700 text-slate-200 rounded-xl font-medium text-xs flex items-center gap-1.5 border border-slate-600 transition-all" title="Descargar estructura de encuesta en JSON">
-                                <i data-lucide="download-cloud" class="w-4 h-4"></i> Guardar preguntas
+                                <i data-lucide="download-cloud" class="w-4 h-4"></i> Guardar
                             </button>
 
                             <button onclick="protectedAction(() => triggerImportJSON())" class="px-3.5 py-2 bg-slate-700/70 hover:bg-slate-700 text-slate-200 rounded-xl font-medium text-xs flex items-center gap-1.5 border border-slate-600 transition-all" title="Cargar archivo JSON de encuesta">
-                                <i data-lucide="upload-cloud" class="w-4 h-4"></i> Cargar preguntas
+                                <i data-lucide="upload-cloud" class="w-4 h-4"></i> Cargar
                             </button>
 
                             <button onclick="exportToCSV()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-1.5 rounded-xl shadow-lg shadow-emerald-600/30 transition-all" title="Descargar CSV codificado">
                                 <i data-lucide="download" class="w-4 h-4"></i> Exportar respuestas
                             </button>
                         </div>
-                        
+
                         <input type="file" id="importJsonInput" accept=".json" class="hidden" onchange="importSurveyJSON(event)">
 
-                        <button id="btnNextBlock" onclick="changeActiveBlock(1)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium text-xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-indigo-600/30">
-                            Siguiente bloque <i data-lucide="chevron-right" class="w-4 h-4"></i>
-                        </button>
+                        <!-- FILA 2: Botones de Navegación (Bloque Anterior y Siguiente Bloque en una sola línea) -->
+                        <div class="flex items-center justify-between gap-3 pt-2 border-t border-slate-700/50">
+                            <button id="btnPrevBlock" onclick="changeActiveBlock(-1)" class="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-medium text-xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                                <i data-lucide="chevron-left" class="w-4 h-4"></i> Bloque anterior
+                            </button>
+
+                            <button id="btnNextBlock" onclick="changeActiveBlock(1)" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium text-xs flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-indigo-600/30">
+                                Siguiente bloque <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -166,7 +171,6 @@
                         <h3 class="text-xl font-bold text-white flex items-center gap-2">
                             <i data-lucide="activity" class="w-5 h-5 text-indigo-400"></i> Estadísticas en tiempo real
                         </h3>
-                        <p class="text-xs text-slate-400">Resultados acumulados del bloque activo</p>
                     </div>
                     <div class="flex items-center gap-3">
                         <span class="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
