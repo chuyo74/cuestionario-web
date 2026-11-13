@@ -91,6 +91,8 @@ export function promptCreateRoomCode(onRender) {
 }
 
 export function renderTeacherDashboard(onRender) {
+    // Obtener el estado de inicio de la encuesta
+    const isStarted = !!state.survey.isStarted;
     const titleElem = document.getElementById('teacherSessionTitle');
     if (titleElem) titleElem.textContent = state.survey.title;
 
@@ -121,8 +123,14 @@ export function renderTeacherDashboard(onRender) {
 
     const btnPrev = document.getElementById('btnPrevBlock');
     const btnNext = document.getElementById('btnNextBlock');
-    if (btnPrev) btnPrev.disabled = currentBlockIdx === 0;
-    if (btnNext) btnNext.disabled = currentBlockIdx >= totalBlocks - 1;
+    // Bloquear la navegación si la encuesta NO ha iniciado
+    if (btnPrev) {
+        btnPrev.disabled = !isStarted || currentBlockIdx === 0;
+    }
+
+    if (btnNext) {
+        btnNext.disabled = !isStarted || currentBlockIdx >= totalBlocks - 1;
+    }
 
     // Actualizar apariencia del botón según el estado de la encuesta
     const btnStart = document.getElementById('btnToggleStartSurvey');
@@ -152,6 +160,10 @@ export function updateQuestionsPerBlock(val, onRender) {
 }
 
 export function changeActiveBlock(delta, onRender) {
+    if (!state.survey.isStarted) {
+        showToast("Debe primero hacer clic en 'Iniciar Encuesta'.", "warning");
+        return;
+    }
     const totalBlocks = SurveyUtils.getTotalBlocks();
     const newBlock = state.survey.activeBlock + delta;
 

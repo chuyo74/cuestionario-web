@@ -28,15 +28,20 @@ export function showToast(message, type = "info") {
 }
 
 export function resetData(onRender) {
-    if (confirm("¿Seguro que deseas borrar todas las respuestas registradas en esta sesión?")) {
+    if (confirm("¿Estás seguro de que deseas reiniciar todas las respuestas de la sala?")) {
+        // 1. Limpiar respuestas y estados de revelado
         state.submissions = [];
-        state.survey.activeBlock = 0;
         state.revealedAnswers = {};
-        saveStateToStorage(true);
-        if (socket) {
-            socket.emit('reset_poll_data');
+
+        // 2. Pausar la encuesta para devolver a los alumnos a la pantalla de bienvenida
+        if (state.survey) {
+            state.survey.isStarted = false;
         }
+
+        // 3. Sincronizar estado global y re-renderizar
+        saveStateToStorage(true);
         if (onRender) onRender();
-        showToast("Datos reiniciados en todos los dispositivos", "info");
+
+        showToast("Respuestas reiniciadas. Los estudiantes regresaron a la sala de espera.", "info");
     }
 }
