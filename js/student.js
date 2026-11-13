@@ -10,14 +10,35 @@ import { showToast } from './utils.js';
 export function renderStudentView() {
     const loginCard = document.getElementById('studentLoginCard');
     const formCard = document.getElementById('studentFormCard');
+    const completedScreen = document.getElementById('studentCompletedScreen');
 
+    // 1. Si no hay estudiante logueado, mostrar la tarjeta de ingreso
     if (!state.currentStudent) {
         if (loginCard) loginCard.classList.remove('hidden');
         if (formCard) formCard.classList.add('hidden');
+        if (completedScreen) completedScreen.classList.add('hidden');
         return;
     }
 
     if (loginCard) loginCard.classList.add('hidden');
+
+    // 2. Calcular si el estudiante ha respondido todas las preguntas
+    const totalQuestions = state.survey.questions ? state.survey.questions.length : 0;
+    const studentSub = state.submissions.find(s => s.studentId === state.currentStudent.id);
+    const answeredCount = (studentSub && studentSub.answers) ? Object.keys(studentSub.answers).length : 0;
+
+    const isFullyCompleted = totalQuestions > 0 && answeredCount >= totalQuestions;
+
+    // 3. Mostrar pantalla final si completó el cuestionario
+    if (isFullyCompleted) {
+        if (formCard) formCard.classList.add('hidden');
+        if (completedScreen) completedScreen.classList.remove('hidden');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    // 4. Si restan preguntas, mostrar el formulario de bloques
+    if (completedScreen) completedScreen.classList.add('hidden');
     if (formCard) formCard.classList.remove('hidden');
 
     const displayName = document.getElementById('studentDisplayName');
@@ -33,7 +54,6 @@ export function renderStudentView() {
         blockBadge.textContent = `Bloque ${activeBlockIdx + 1} (Preguntas ${startIndex + 1} y ${startIndex + blockQuestions.length})`;
     }
 
-    const studentSub = state.submissions.find(s => s.studentId === state.currentStudent.id);
     const hasAnsweredBlock = blockQuestions.length > 0 && blockQuestions.every(q => studentSub && studentSub.answers && studentSub.answers[q.id]);
 
     const waitingBanner = document.getElementById('waitingBlockBanner');
@@ -47,7 +67,10 @@ export function renderStudentView() {
         if (studentForm) studentForm.classList.remove('hidden');
         renderStudentQuestions(blockQuestions, studentSub);
     }
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
+
 
 export function renderStudentQuestions(questions, studentSub) {
     const container = document.getElementById('studentQuestionsContainer');
