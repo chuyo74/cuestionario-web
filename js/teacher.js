@@ -91,8 +91,14 @@ export function promptCreateRoomCode(onRender) {
 }
 
 export function renderTeacherDashboard(onRender) {
-    // Obtener el estado de inicio de la encuesta
+    // 1. ESTADO Y VARIABLES DEL BLOQUE ACTUAL
     const isStarted = !!state.survey.isStarted;
+    const qpb = SurveyUtils.getQuestionsPerBlock();
+    const totalBlocks = SurveyUtils.getTotalBlocks();
+    const currentBlockIdx = state.survey.activeBlock;
+    const blockQuestions = SurveyUtils.getCurrentBlockQuestions();
+
+    // 2. INFORMACIÓN Y METADATOS DE LA SALA
     const titleElem = document.getElementById('teacherSessionTitle');
     if (titleElem) titleElem.textContent = state.survey.title;
 
@@ -104,10 +110,7 @@ export function renderTeacherDashboard(onRender) {
     const totalCountElem = document.getElementById('totalQuestionsCount');
     if (totalCountElem) totalCountElem.textContent = `${state.survey.questions.length} preguntas en total`;
 
-    const qpb = SurveyUtils.getQuestionsPerBlock();
-    const totalBlocks = SurveyUtils.getTotalBlocks();
-    const currentBlockIdx = state.survey.activeBlock;
-
+    // 3. SECTOR DE PROGRESO Y SELECTOR DE BLOQUES
     const selectElem = document.getElementById('selectQuestionsPerBlock');
     if (selectElem) selectElem.value = qpb;
 
@@ -117,25 +120,14 @@ export function renderTeacherDashboard(onRender) {
     const progressTextElem = document.getElementById('blockProgressText');
     if (progressTextElem) progressTextElem.textContent = `Bloque ${currentBlockIdx + 1} de ${totalBlocks}`;
 
-    const progressPct = ((currentBlockIdx + 1) / totalBlocks) * 100;
+    const progressPct = totalBlocks > 0 ? ((currentBlockIdx + 1) / totalBlocks) * 100 : 0;
     const progressBarElem = document.getElementById('blockProgressBar');
     if (progressBarElem) progressBarElem.style.width = `${progressPct}%`;
 
-    const btnPrev = document.getElementById('btnPrevBlock');
-    const btnNext = document.getElementById('btnNextBlock');
-    // Bloquear la navegación si la encuesta NO ha iniciado
-    if (btnPrev) {
-        btnPrev.disabled = !isStarted || currentBlockIdx === 0;
-    }
-
-    if (btnNext) {
-        btnNext.disabled = !isStarted || currentBlockIdx >= totalBlocks - 1;
-    }
-
-    // Control visual del botón "Iniciar Encuesta"
+    // 4. ESTADO VISUAL DEL BOTÓN "INICIAR ENCUESTA"
     const btnStart = document.getElementById('btnToggleStartSurvey');
     if (btnStart) {
-        if (state.survey.isStarted) {
+        if (isStarted) {
             btnStart.disabled = true;
             btnStart.innerHTML = `<i data-lucide="check-circle-2" class="w-4 h-4"></i> Encuesta Iniciada`;
             btnStart.className = "px-3.5 py-2 bg-slate-700 text-slate-400 font-semibold text-xs flex items-center gap-1.5 rounded-xl border border-slate-600/50 cursor-not-allowed opacity-60 transition-all";
@@ -146,6 +138,50 @@ export function renderTeacherDashboard(onRender) {
         }
     }
 
+    // 5. NAVEGACIÓN DE BLOQUES Y ANIMACIÓN DE RESALTADO
+    const btnPrev = document.getElementById('btnPrevBlock');
+    const btnNext = document.getElementById('btnNextBlock');
+
+    // Deshabilitar botón anterior si no ha iniciado o es el primer bloque
+    if (btnPrev) {
+        btnPrev.disabled = !isStarted || currentBlockIdx === 0;
+    }
+
+    // Evaluar si todos los estudiantes conectados ya respondieron el bloque actual
+    const totalSubmissions = state.submissions.length;
+    const allAnsweredCurrentBlock = totalSubmissions > 0 && state.submissions.every(sub => 
+        blockQuestions.length > 0 && blockQuestions.every(q => sub.answers && sub.answers[q.id])
+    );
+
+    if (btnNext) {
+        const isLastBlock = currentBlockIdx >= totalBlocks - 1;
+        btnNext.disabled = !isStarted || isLastBlock;
+
+        // Activar la animación bounce y el anillo luminoso cuando todos hayan respondido
+        if (isStarted && !isLastBlock && allAnsweredCurrentBlock) {
+            btnNext.classList.add(
+                'animate-bounce', 
+                'ring-2', 
+                'ring-indigo-400', 
+                'shadow-lg', 
+                'shadow-indigo-500/40', 
+                'bg-indigo-600'
+            );
+            btnNext.classList.remove('bg-slate-800');
+        } else {
+            btnNext.classList.remove(
+                'animate-bounce', 
+                'ring-2', 
+                'ring-indigo-400', 
+                'shadow-lg', 
+                'shadow-indigo-500/40', 
+                'bg-indigo-600'
+            );
+            btnNext.classList.add('bg-slate-800');
+        }
+    }
+
+    // 6. RENDERIZADO DE SUB-COMPONENTES
     renderBlockCharts();
     renderParticipantsTable();
 }
@@ -300,20 +336,49 @@ export function renderParticipantsTable() {
         return;
     }
 
+    const totalCount = state.survey.questions ? state.survey.questions.length : 0;
+    const isStarted = !!state.survey.isStarted;
+    const blockQuestions = SurveyUtils.getCurrentBlockQuestions();
+
     state.submissions.forEach(sub => {
-        const answeredCount = Object.keys(sub.answers || {}).length;
-        const totalCount = state.survey.questions.length;
+        const answeredCount = sub.answers ? Object.keys(sub.answers).length : 0;
         const formattedDate = new Date(sub.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+        // 🟢 Verificar si el estudiante ya respondió todas las preguntas del bloque activo actual
+        const hasAnsweredCurrentBlock = blockQuestions.length > 0 && 
+            blockQuestions.every(q => sub.answers && sub.answers[q.id]);
+
+        // 🟢 Evaluación jerárquica de estados
+        let statusText = "";
+        let statusClass = "";
+
+        if (answeredCount >= totalCount && totalCount > 0) {
+            // 1. Completó toda la encuesta
+            statusText = "Completo";
+            statusClass = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+        } else if (!isStarted || answeredCount === 0) {
+            // 2. La encuesta no ha iniciado o el alumno no ha respondido nada
+            statusText = "Esperando iniciar";
+            statusClass = "bg-slate-700/50 text-slate-400 border border-slate-600/30";
+        } else if (hasAnsweredCurrentBlock) {
+            // 3. Envió el bloque actual y espera a que el docente avance de bloque
+            statusText = "Esperando siguiente bloque";
+            statusClass = "bg-sky-500/10 text-sky-400 border border-sky-500/20";
+        } else {
+            // 4. Está respondiendo las preguntas del bloque activo
+            statusText = "En progreso";
+            statusClass = "bg-amber-500/10 text-amber-400 border border-amber-500/20";
+        }
+
         const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-800/50 transition-colors";
+        tr.className = "hover:bg-slate-800/50 transition-colors border-b border-slate-800/60";
         tr.innerHTML = `
             <td class="py-3 px-4 font-semibold text-white">${sub.studentName}</td>
-            <td class="py-3 px-4"><span class="bg-indigo-500/10 text-indigo-300 px-2 py-0.5 rounded font-mono">${answeredCount} / ${totalCount}</span></td>
-            <td class="py-3 px-4 text-slate-400">${formattedDate}</td>
+            <td class="py-3 px-4"><span class="bg-indigo-500/10 text-indigo-300 px-2 py-0.5 rounded font-mono text-xs border border-indigo-500/20">${answeredCount} / ${totalCount}</span></td>
+            <td class="py-3 px-4 text-slate-400 text-xs">${formattedDate}</td>
             <td class="py-3 px-4 text-right">
-                <span class="px-2 py-0.5 rounded-full ${answeredCount >= totalCount ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'} font-medium">
-                    ${answeredCount >= totalCount ? 'Completo' : 'En Progreso'}
+                <span class="px-2.5 py-1 rounded-full ${statusClass} text-xs font-semibold inline-flex items-center gap-1">
+                    ${statusText}
                 </span>
             </td>
         `;
