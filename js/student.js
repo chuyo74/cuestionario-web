@@ -146,5 +146,5 @@ export function handleStudentSubmitBlock(e, onRender) {
     state.submissions[subIndex].timestamp = new Date().toISOString();
     saveStateToStorage(false);
     if (onRender) onRender();
-    showToast("Respuestas enviadas y sincronizadas con el profesor", "success");
+    showToast("Respuestas enviadas", "success");
 }

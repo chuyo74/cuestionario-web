@@ -530,17 +530,37 @@ function renderParticipantsTable() {
 // ==========================================
 // 8. VISTA ESTUDIANTE Y FORMULARIOS
 // ==========================================
-function renderStudentView() {
+export function renderStudentView() {
     const loginCard = document.getElementById('studentLoginCard');
     const formCard = document.getElementById('studentFormCard');
+    const completedScreen = document.getElementById('studentCompletedScreen');
 
+    // 1. Si no hay estudiante logueado, mostrar tarjeta de login
     if (!state.currentStudent) {
         if (loginCard) loginCard.classList.remove('hidden');
         if (formCard) formCard.classList.add('hidden');
+        if (completedScreen) completedScreen.classList.add('hidden');
         return;
     }
 
     if (loginCard) loginCard.classList.add('hidden');
+
+    // 2. Calcular progreso total del estudiante
+    const totalQuestions = state.survey.questions ? state.survey.questions.length : 0;
+    const studentSub = state.submissions.find(s => s.studentId === state.currentStudent.id);
+    const answeredCount = (studentSub && studentSub.answers) ? Object.keys(studentSub.answers).length : 0;
+
+    const isFullyCompleted = totalQuestions > 0 && answeredCount >= totalQuestions;
+
+    // 3. Evaluar si debe desplegar la Pantalla Final de Cierre
+    if (isFullyCompleted) {
+        if (formCard) formCard.classList.add('hidden');
+        if (completedScreen) completedScreen.classList.remove('hidden');
+        return;
+    }
+
+    // 4. Si aún no ha completado todas las preguntas, mostrar la vista por bloques habitual
+    if (completedScreen) completedScreen.classList.add('hidden');
     if (formCard) formCard.classList.remove('hidden');
 
     const displayName = document.getElementById('studentDisplayName');
@@ -556,7 +576,6 @@ function renderStudentView() {
         blockBadge.textContent = `Bloque ${activeBlockIdx + 1} (Preguntas ${startIndex + 1} y ${startIndex + blockQuestions.length})`;
     }
 
-    const studentSub = state.submissions.find(s => s.studentId === state.currentStudent.id);
     const hasAnsweredBlock = blockQuestions.length > 0 && blockQuestions.every(q => studentSub && studentSub.answers && studentSub.answers[q.id]);
 
     const waitingBanner = document.getElementById('waitingBlockBanner');
@@ -571,6 +590,7 @@ function renderStudentView() {
         renderStudentQuestions(blockQuestions, studentSub);
     }
 }
+
 
 function renderStudentQuestions(questions, studentSub) {
     const container = document.getElementById('studentQuestionsContainer');

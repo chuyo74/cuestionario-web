@@ -176,7 +176,7 @@ export function renderBlockCharts() {
         const toggleBtnHTML = q.correctAnswer ? `
             <button onclick="toggleAnswerVisibility('${q.id}')" class="px-2.5 py-1 text-xs rounded-lg font-medium flex items-center gap-1.5 transition-all ${isRevealed ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'}">
                 <i data-lucide="${isRevealed ? 'eye-off' : 'eye'}" class="w-3.5 h-3.5"></i>
-                <span>${isRevealed ? 'Ocultar Respuesta' : 'Mostrar Respuesta'}</span>
+                <span>${isRevealed ? 'Ocultar Respuesta' : 'Mostrar respuesta'}</span>
             </button>
         ` : '';
 
