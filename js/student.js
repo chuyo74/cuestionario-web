@@ -13,7 +13,7 @@ export function renderStudentView() {
     const formCard = document.getElementById('studentFormCard');
     const completedScreen = document.getElementById('studentCompletedScreen');
 
-    // 1. Si no hay estudiante logueado, mostrar la tarjeta de ingreso
+    // 1. Si no hay estudiante logueado -> Mostrar tarjeta de login
     if (!state.currentStudent) {
         if (loginCard) loginCard.classList.remove('hidden');
         if (welcomeScreen) welcomeScreen.classList.add('hidden');
@@ -24,39 +24,37 @@ export function renderStudentView() {
 
     if (loginCard) loginCard.classList.add('hidden');
 
-    // 2. Calcular si el estudiante ha respondido todas las preguntas
+    // 2. Calcular si el estudiante ha respondido TODAS las preguntas
     const totalQuestions = state.survey.questions ? state.survey.questions.length : 0;
     const studentSub = state.submissions.find(s => s.studentId === state.currentStudent.id);
     const answeredCount = (studentSub && studentSub.answers) ? Object.keys(studentSub.answers).length : 0;
-
     const isFullyCompleted = totalQuestions > 0 && answeredCount >= totalQuestions;
 
-    // Actualizar nombre en la pantalla de bienvenida
-    const welcomeName = document.getElementById('studentWelcomeName');
-    if (welcomeName) welcomeName.textContent = state.currentStudent.name;
-
-    // 2. Si el profesor AÚN NO ha iniciado la encuesta -> Mostrar Sala de Espera
-    const isSurveyStarted = !!state.survey.isStarted;
-    if (!isSurveyStarted) {
-        if (welcomeScreen) welcomeScreen.classList.remove('hidden');
-        if (formCard) formCard.classList.add('hidden');
-        if (completedScreen) completedScreen.classList.add('hidden');
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-        return;
-    }
-
-    // Si ya inició, ocultar la sala de espera
-    if (welcomeScreen) welcomeScreen.classList.add('hidden');
-
-    // 3. Mostrar pantalla final si completó el cuestionario
+    // 🟢 PRIORIDAD 1: Si ya completó la encuesta -> Mostrar Pantalla Final inmediatamente
     if (isFullyCompleted) {
+        if (welcomeScreen) welcomeScreen.classList.add('hidden');
         if (formCard) formCard.classList.add('hidden');
         if (completedScreen) completedScreen.classList.remove('hidden');
         if (typeof lucide !== 'undefined') lucide.createIcons();
         return;
     }
 
-    // 4. Si restan preguntas, mostrar el formulario de bloques
+    // 🟢 PRIORIDAD 2: Si aún no inicia la encuesta -> Mostrar Sala de Espera
+    const isSurveyStarted = !!state.survey.isStarted;
+    if (!isSurveyStarted) {
+        if (welcomeScreen) welcomeScreen.classList.remove('hidden');
+        if (formCard) formCard.classList.add('hidden');
+        if (completedScreen) completedScreen.classList.add('hidden');
+        
+        const welcomeName = document.getElementById('studentWelcomeName');
+        if (welcomeName) welcomeName.textContent = state.currentStudent.name;
+        
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    // 🟢 PRIORIDAD 3: Encuesta activa y preguntas pendientes
+    if (welcomeScreen) welcomeScreen.classList.add('hidden');
     if (completedScreen) completedScreen.classList.add('hidden');
     if (formCard) formCard.classList.remove('hidden');
 
@@ -74,7 +72,6 @@ export function renderStudentView() {
     }
 
     const hasAnsweredBlock = blockQuestions.length > 0 && blockQuestions.every(q => studentSub && studentSub.answers && studentSub.answers[q.id]);
-
     const waitingBanner = document.getElementById('waitingBlockBanner');
     const studentForm = document.getElementById('studentBlockForm');
 
