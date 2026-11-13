@@ -75,13 +75,11 @@ export function switchRole(role, onRender) {
         if (btnStudent) btnStudent.className = "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white";
         if (studentView) studentView.classList.add('hidden');
         
-        // Si no hay sala seleccionada, mantenemos oculta la vista docente y abrimos el modal de sala
-        if (!state.roomCode) {
-            if (teacherView) teacherView.classList.add('hidden');
-            openRoomSelectionModal();
-        } else {
-            if (teacherView) teacherView.classList.remove('hidden');
-        }
+        // SIEMPRE que se ingresa al modo profesor:
+        // 1. Ocultar el dashboard docente
+        if (teacherView) teacherView.classList.add('hidden');
+        // 2. Abrir obligatoriamente el modal para elegir o crear sala
+        openRoomSelectionModal();
     } else {
         if (btnStudent) btnStudent.className = "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-white bg-indigo-600 shadow-md";
         if (btnTeacher) btnTeacher.className = "px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all text-slate-400 hover:text-white";

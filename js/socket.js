@@ -27,12 +27,12 @@ export function initSocketConnection(onRender) {
                     badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
                 }
                 
-                // Reconexión si ya existe un código guardado
-                if (state.roomCode) {
+                // Reconexión automática EXCLUSIVA para estudiantes
+                if (state.roomCode && state.currentRole === 'student' && state.currentStudent) {
                     socket.emit('join_room', {
                         roomCode: state.roomCode,
-                        role: state.currentRole,
-                        studentData: state.currentRole === 'student' ? state.currentStudent : null
+                        role: 'student',
+                        studentData: state.currentStudent
                     });
                 }
             });
@@ -47,7 +47,7 @@ export function initSocketConnection(onRender) {
                     if (data.submissions) state.submissions = data.submissions;
                     if (data.activeStudents) state.activeStudents = data.activeStudents;
                     
-                    // Al recibir la confirmación de la sala, cerramos el modal y mostramos la vista docente
+                    // Cerrar modal y RECIÉN AHORA mostrar el Dashboard Docente
                     closeRoomSelectionModal();
                     if (state.currentRole === 'teacher') {
                         const teacherView = document.getElementById('teacherView');
@@ -55,6 +55,20 @@ export function initSocketConnection(onRender) {
                     }
 
                     if (onRender) onRender();
+                }
+            });
+
+            socket.on('room_error', (data) => {
+                showToast(data.message, "warning");
+
+                state.roomCode = '';
+                localStorage.removeItem('classpoll_room_code');
+
+                if (state.currentRole === 'teacher') {
+                    // Mantener oculto el dashboard y mantener visible el modal de selección
+                    const teacherView = document.getElementById('teacherView');
+                    if (teacherView) teacherView.classList.add('hidden');
+                    openRoomSelectionModal();
                 }
             });
 

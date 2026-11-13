@@ -31,6 +31,13 @@ export function handleDeleteRoom() {
 
 export function openRoomSelectionModal() {
     const modal = document.getElementById('roomSelectionModal');
+    const inputNew = document.getElementById('inputNewRoomCode');
+    const inputExist = document.getElementById('inputExistingRoomCode');
+    
+    // Limpiar los inputs para que no tengan valores anteriores
+    if (inputNew) inputNew.value = '';
+    if (inputExist) inputExist.value = '';
+    
     if (modal) modal.classList.remove('hidden');
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
