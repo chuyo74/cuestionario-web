@@ -329,11 +329,48 @@ export function renderParticipantsTable() {
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    const countBadge = document.getElementById('logCountBadge');
-    if (countBadge) countBadge.textContent = `${state.submissions.length} participantes registrados`;
+    // 1. Obtener lista combinada de estudiantes activos (en sala) y envíos realizados
+    const activeStudents = state.activeStudents || [];
+    const submissions = state.submissions || [];
 
-    if (state.submissions.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500 italic">No hay datos registrados aún.</td></tr>`;
+    const participantsMap = new Map();
+
+    // Registrar a los estudiantes conectados a la sala (en sala de espera o activos)
+    activeStudents.forEach(st => {
+        if (st && (st.id || st.studentId)) {
+            const id = st.id || st.studentId;
+            participantsMap.set(id, {
+                studentId: id,
+                studentName: st.name || st.studentName || 'Estudiante',
+                answers: {},
+                timestamp: null
+            });
+        }
+    });
+
+    // Combinar con la información de las entregas/respuestas enviadas
+    submissions.forEach(sub => {
+        if (sub && sub.studentId) {
+            const existing = participantsMap.get(sub.studentId);
+            participantsMap.set(sub.studentId, {
+                studentId: sub.studentId,
+                studentName: sub.studentName || (existing ? existing.studentName : 'Estudiante'),
+                answers: sub.answers || {},
+                timestamp: sub.timestamp || null
+            });
+        }
+    });
+
+    const participants = Array.from(participantsMap.values());
+
+    // 2. Actualizar el contador en la cabecera de la tabla
+    const countBadge = document.getElementById('logCountBadge');
+    if (countBadge) {
+        countBadge.textContent = `${participants.length} participante(s) en sala`;
+    }
+
+    if (participants.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500 italic">No hay participantes en la sala aún.</td></tr>`;
         return;
     }
 
@@ -341,32 +378,29 @@ export function renderParticipantsTable() {
     const isStarted = !!state.survey.isStarted;
     const blockQuestions = SurveyUtils.getCurrentBlockQuestions();
 
-    state.submissions.forEach(sub => {
+    // 3. Renderizar cada participante con su estado correspondiente
+    participants.forEach(sub => {
         const answeredCount = sub.answers ? Object.keys(sub.answers).length : 0;
-        const formattedDate = new Date(sub.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const formattedDate = sub.timestamp 
+            ? new Date(sub.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : '--:--';
 
-        // 🟢 Verificar si el estudiante ya respondió todas las preguntas del bloque activo actual
         const hasAnsweredCurrentBlock = blockQuestions.length > 0 && 
             blockQuestions.every(q => sub.answers && sub.answers[q.id]);
 
-        // 🟢 Evaluación jerárquica de estados
         let statusText = "";
         let statusClass = "";
 
-        if (answeredCount >= totalCount && totalCount > 0) {
-            // 1. Completó toda la encuesta
+        if (totalCount > 0 && answeredCount >= totalCount) {
             statusText = "Completo";
             statusClass = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
         } else if (!isStarted || answeredCount === 0) {
-            // 2. La encuesta no ha iniciado o el alumno no ha respondido nada
             statusText = "Esperando iniciar";
             statusClass = "bg-slate-700/50 text-slate-400 border border-slate-600/30";
         } else if (hasAnsweredCurrentBlock) {
-            // 3. Envió el bloque actual y espera a que el docente avance de bloque
             statusText = "Esperando siguiente bloque";
             statusClass = "bg-sky-500/10 text-sky-400 border border-sky-500/20";
         } else {
-            // 4. Está respondiendo las preguntas del bloque activo
             statusText = "En progreso";
             statusClass = "bg-amber-500/10 text-amber-400 border border-amber-500/20";
         }
@@ -375,7 +409,11 @@ export function renderParticipantsTable() {
         tr.className = "hover:bg-slate-800/50 transition-colors border-b border-slate-800/60";
         tr.innerHTML = `
             <td class="py-3 px-4 font-semibold text-white">${sub.studentName}</td>
-            <td class="py-3 px-4"><span class="bg-indigo-500/10 text-indigo-300 px-2 py-0.5 rounded font-mono text-xs border border-indigo-500/20">${answeredCount} / ${totalCount}</span></td>
+            <td class="py-3 px-4">
+                <span class="bg-indigo-500/10 text-indigo-300 px-2 py-0.5 rounded font-mono text-xs border border-indigo-500/20">
+                    ${answeredCount} / ${totalCount}
+                </span>
+            </td>
             <td class="py-3 px-4 text-slate-400 text-xs">${formattedDate}</td>
             <td class="py-3 px-4 text-right">
                 <span class="px-2.5 py-1 rounded-full ${statusClass} text-xs font-semibold inline-flex items-center gap-1">
