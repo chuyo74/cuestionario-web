@@ -329,13 +329,12 @@ export function renderParticipantsTable() {
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    // 1. Obtener lista combinada de estudiantes activos (en sala) y envíos realizados
+    // 1. Combinar alumnos conectados en tiempo real y entregas registradas
     const activeStudents = state.activeStudents || [];
     const submissions = state.submissions || [];
 
     const participantsMap = new Map();
 
-    // Registrar a los estudiantes conectados a la sala (en sala de espera o activos)
     activeStudents.forEach(st => {
         if (st && (st.id || st.studentId)) {
             const id = st.id || st.studentId;
@@ -348,7 +347,6 @@ export function renderParticipantsTable() {
         }
     });
 
-    // Combinar con la información de las entregas/respuestas enviadas
     submissions.forEach(sub => {
         if (sub && sub.studentId) {
             const existing = participantsMap.get(sub.studentId);
@@ -363,7 +361,6 @@ export function renderParticipantsTable() {
 
     const participants = Array.from(participantsMap.values());
 
-    // 2. Actualizar el contador en la cabecera de la tabla
     const countBadge = document.getElementById('logCountBadge');
     if (countBadge) {
         countBadge.textContent = `${participants.length} participante(s) en sala`;
@@ -378,7 +375,7 @@ export function renderParticipantsTable() {
     const isStarted = !!state.survey.isStarted;
     const blockQuestions = SurveyUtils.getCurrentBlockQuestions();
 
-    // 3. Renderizar cada participante con su estado correspondiente
+    // 2. Evaluador Jerárquico de Estados de los Estudiantes
     participants.forEach(sub => {
         const answeredCount = sub.answers ? Object.keys(sub.answers).length : 0;
         const formattedDate = sub.timestamp 
@@ -392,15 +389,19 @@ export function renderParticipantsTable() {
         let statusClass = "";
 
         if (totalCount > 0 && answeredCount >= totalCount) {
+            // A. Completó la totalidad de la encuesta
             statusText = "Completo";
             statusClass = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-        } else if (!isStarted || answeredCount === 0) {
+        } else if (!isStarted) {
+            // B. La encuesta AÚN NO ha sido iniciada por el docente
             statusText = "Esperando iniciar";
             statusClass = "bg-slate-700/50 text-slate-400 border border-slate-600/30";
         } else if (hasAnsweredCurrentBlock) {
+            // C. Ya respondió el bloque activo y espera el cambio de bloque
             statusText = "Esperando siguiente bloque";
             statusClass = "bg-sky-500/10 text-sky-400 border border-sky-500/20";
         } else {
+            // D. La encuesta ESTÁ INICIADA y el alumno está respondiendo el bloque activo
             statusText = "En progreso";
             statusClass = "bg-amber-500/10 text-amber-400 border border-amber-500/20";
         }
