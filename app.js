@@ -152,7 +152,7 @@ function initSocketConnection() {
             socket.on('connect', () => {
                 const badge = document.getElementById('sessionStatusBadge');
                 if (badge) {
-                    badge.textContent = "Conectado en Vivo";
+                    badge.textContent = "Conectado en vivo";
                     badge.className = "text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
                 }
                 if (state.currentStudent && state.currentStudent.id) {

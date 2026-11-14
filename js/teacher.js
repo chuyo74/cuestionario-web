@@ -207,6 +207,7 @@ export function changeActiveBlock(delta, onRender) {
 
     if (newBlock >= 0 && newBlock < totalBlocks) {
         state.survey.activeBlock = newBlock;
+        state.survey.blockStartTime = Date.now();
         saveStateToStorage(true);
         if (onRender) onRender();
         showToast(`Bloque ${newBlock + 1} activado para los estudiantes`, "info");
@@ -669,9 +670,10 @@ export function toggleStartSurvey(onRender) {
     if (state.survey.isStarted) return;
 
     state.survey.isStarted = true;
+    state.survey.blockStartTime = Date.now(); // ⏱️ Registrar tiempo de inicio del Bloque 1
     saveStateToStorage(true);
 
     if (onRender) onRender();
 
-    showToast("Encuesta iniciada. Las preguntas están disponibles para los alumnos.", "success");
+    showToast("Encuesta iniciada. Las preguntas están disponibles.", "success");
 }

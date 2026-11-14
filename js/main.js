@@ -28,9 +28,19 @@ import { renderStudentView, handleStudentLogin, studentLogout, handleStudentSubm
 import { exportToCSV, exportSurveyJSON, triggerImportJSON, importSurveyJSON } from './export.js';
 import { handleDeleteRoom } from './teacher.js';
 import { toggleStartSurvey } from './teacher.js';
+import { initBlockTimer } from './utils.js';
 
 window.handleDeleteRoom = handleDeleteRoom;
 window.toggleStartSurvey = () => toggleStartSurvey(renderApp);
+
+window.addEventListener('DOMContentLoaded', () => {
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    initSocketConnection(renderApp);
+    switchRole('student', renderApp);
+    
+    // 🟢 Iniciar el motor del cronómetro en segundo plano
+    initBlockTimer(state);
+});
 
 // Motor principal de renderizado
 function renderApp() {
