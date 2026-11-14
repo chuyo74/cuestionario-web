@@ -133,7 +133,7 @@ export function renderTeacherDashboard(onRender) {
             btnStart.className = "px-3.5 py-2 bg-slate-700 text-slate-400 font-semibold text-xs flex items-center gap-1.5 rounded-xl border border-slate-600/50 cursor-not-allowed opacity-60 transition-all";
         } else {
             btnStart.disabled = false;
-            btnStart.innerHTML = `<i data-lucide="play" class="w-4 h-4"></i> Iniciar Encuesta`;
+            btnStart.innerHTML = `<i data-lucide="play" class="w-4 h-4"></i> Iniciar encuesta`;
             btnStart.className = "px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center gap-1.5 rounded-xl shadow-lg shadow-emerald-600/30 transition-all cursor-pointer";
         }
     }
@@ -199,7 +199,7 @@ export function updateQuestionsPerBlock(val, onRender) {
 
 export function changeActiveBlock(delta, onRender) {
     if (!state.survey.isStarted) {
-        showToast("Debe primero hacer clic en 'Iniciar Encuesta'.", "warning");
+        showToast("Debe primero hacer clic en 'Iniciar encuesta'.", "warning");
         return;
     }
     const totalBlocks = SurveyUtils.getTotalBlocks();
