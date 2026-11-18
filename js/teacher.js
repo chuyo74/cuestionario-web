@@ -232,12 +232,14 @@ export function renderBlockCharts() {
         const questionNumber = startIndex + idx + 1;
         const isRevealed = !!state.revealedAnswers[q.id];
 
+        // 1. Generar HTML de la insignia de porcentaje
         const accuracyBadgeHTML = q.correctAnswer ? `
             <span id="accuracy_badge_${q.id}" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">
                 % Correctas: --%
             </span>
         ` : '';
 
+        // 2. Generar botón para revelar respuesta
         const toggleBtnHTML = q.correctAnswer ? `
             <button onclick="toggleAnswerVisibility('${q.id}')" class="px-2.5 py-1 text-xs rounded-lg font-medium flex items-center gap-1.5 transition-all ${isRevealed ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'}">
                 <i data-lucide="${isRevealed ? 'eye-off' : 'eye'}" class="w-3.5 h-3.5"></i>
@@ -245,6 +247,7 @@ export function renderBlockCharts() {
             </button>
         ` : '';
 
+        // 3. Generar caja con la respuesta correcta y explicación
         const correctAnswerHTML = q.correctAnswer ? `
             <div id="answer_box_${q.id}" class="${isRevealed ? '' : 'hidden'} mt-3 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs space-y-1 transition-all">
                 <div class="font-bold text-emerald-400 flex items-center gap-1.5">
@@ -257,11 +260,15 @@ export function renderBlockCharts() {
         const card = document.createElement('div');
         card.className = "bg-slate-900/60 border border-slate-700/80 rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-xl";
 
+        // 🟢 CORRECCIÓN: Se agrega accuracyBadgeHTML al contenedor de la cabecera
         card.innerHTML = `
             <div>
-                <div class="flex items-center justify-between text-xs text-indigo-400 font-semibold mb-2">
+                <div class="flex items-center justify-between text-xs text-indigo-400 font-semibold mb-2 flex-wrap gap-2">
                     <span class="bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/20">Pregunta ${questionNumber}</span>
-                    ${toggleBtnHTML}
+                    <div class="flex items-center gap-2">
+                        ${accuracyBadgeHTML}
+                        ${toggleBtnHTML}
+                    </div>
                 </div>
                 <h4 class="font-bold text-white text-sm leading-snug">${q.text}</h4>
                 ${correctAnswerHTML}
