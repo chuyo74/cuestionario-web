@@ -232,6 +232,12 @@ export function renderBlockCharts() {
         const questionNumber = startIndex + idx + 1;
         const isRevealed = !!state.revealedAnswers[q.id];
 
+        const accuracyBadgeHTML = q.correctAnswer ? `
+            <span id="accuracy_badge_${q.id}" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">
+                % Correctas: --%
+            </span>
+        ` : '';
+
         const toggleBtnHTML = q.correctAnswer ? `
             <button onclick="toggleAnswerVisibility('${q.id}')" class="px-2.5 py-1 text-xs rounded-lg font-medium flex items-center gap-1.5 transition-all ${isRevealed ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'}">
                 <i data-lucide="${isRevealed ? 'eye-off' : 'eye'}" class="w-3.5 h-3.5"></i>
@@ -277,14 +283,47 @@ export function createOrUpdateChart(question) {
     if (!canvas) return;
 
     const counts = question.options.map(() => 0);
+    let totalAnswers = 0;
+    let correctAnswersCount = 0;
+
+    // 1. Contar respuestas por opción y calcular aciertos globales
     state.submissions.forEach(sub => {
         const answer = sub.answers ? sub.answers[question.id] : null;
         if (answer) {
             const optIndex = question.options.indexOf(answer);
-            if (optIndex !== -1) counts[optIndex]++;
+            if (optIndex !== -1) {
+                counts[optIndex]++;
+                totalAnswers++;
+                if (question.correctAnswer && answer === question.correctAnswer) {
+                    correctAnswersCount++;
+                }
+            }
         }
     });
 
+    // 2. Actualizar insignia de porcentaje de respuestas correctas (si la pregunta tiene respuesta correcta)
+    const accuracyBadge = document.getElementById(`accuracy_badge_${question.id}`);
+    if (accuracyBadge && question.correctAnswer) {
+        if (totalAnswers > 0) {
+            const pct = Math.round((correctAnswersCount / totalAnswers) * 100);
+            
+            // Asignación de estilos dinámicos según el porcentaje de aciertos
+            let colorClass = "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"; // >= 70%
+            if (pct < 40) {
+                colorClass = "bg-rose-500/10 text-rose-400 border-rose-500/30";       // < 40%
+            } else if (pct < 70) {
+                colorClass = "bg-amber-500/10 text-amber-400 border-amber-500/30";     // 40% - 69%
+            }
+
+            accuracyBadge.className = `px-2.5 py-0.5 rounded-full text-xs font-semibold border ${colorClass}`;
+            accuracyBadge.textContent = `% Correctas: ${pct}% (${correctAnswersCount}/${totalAnswers})`;
+        } else {
+            accuracyBadge.className = "px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700";
+            accuracyBadge.textContent = "% Correctas: 0% (0/0)";
+        }
+    }
+
+    // 3. Destruir instancia previa del gráfico si existe
     if (state.chartInstances[question.id]) {
         state.chartInstances[question.id].destroy();
     }
@@ -298,6 +337,7 @@ export function createOrUpdateChart(question) {
         (isRevealed && opt === question.correctAnswer) ? 'rgba(16, 185, 129, 1)' : 'rgba(99, 102, 241, 1)'
     );
 
+    // 4. Renderizar o actualizar gráfico Chart.js
     const ctx = canvas.getContext('2d');
     state.chartInstances[question.id] = new Chart(ctx, {
         type: 'bar',
